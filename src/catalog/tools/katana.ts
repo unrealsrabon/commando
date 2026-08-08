@@ -1,0 +1,95 @@
+import type { Tool } from "../../types";
+
+const katana: Tool = {
+  id: "katana",
+  name: "Katana",
+  binary: "katana",
+  category: "Web",
+  summary: "Fast web crawler for endpoint and URL discovery.",
+  docsUrl: "https://github.com/projectdiscovery/katana",
+  install: "go install github.com/projectdiscovery/katana/cmd/katana@latest",
+  fields: [
+    {
+      id: "url",
+      label: "URL",
+      kind: "text",
+      hero: true,
+      contextKey: "URL",
+      valueFlag: "-u",
+      required: true,
+      placeholder: "https://target/",
+    },
+    {
+      id: "depth",
+      label: "Depth (-d)",
+      kind: "number",
+      group: "Crawl",
+      valueFlag: "-d",
+      placeholder: "3",
+    },
+    {
+      id: "jsCrawl",
+      label: "Crawl JS (-jc)",
+      kind: "toggle",
+      group: "Crawl",
+      onTokens: ["-jc"],
+      help: "Parse JavaScript for endpoints.",
+    },
+    {
+      id: "headless",
+      label: "Headless (-hl)",
+      kind: "toggle",
+      group: "Crawl",
+      onTokens: ["-hl"],
+      help: "Use a headless browser for dynamic pages.",
+    },
+    {
+      id: "concurrency",
+      label: "Concurrency (-c)",
+      kind: "number",
+      group: "Performance",
+      valueFlag: "-c",
+      placeholder: "10",
+    },
+    {
+      id: "rateLimit",
+      label: "Rate limit (-rl)",
+      kind: "number",
+      group: "Performance",
+      valueFlag: "-rl",
+      placeholder: "150",
+    },
+    {
+      id: "extensionFilter",
+      label: "Field (-f)",
+      kind: "select",
+      group: "Output",
+      clearable: true,
+      options: [
+        { id: "url", label: "url", tokens: ["-f", "url"] },
+        { id: "qurl", label: "qurl", tokens: ["-f", "qurl"], explain: "URLs with query params." },
+        { id: "path", label: "path", tokens: ["-f", "path"] },
+      ],
+    },
+    {
+      id: "jsonOut",
+      label: "JSON output (-j)",
+      kind: "toggle",
+      group: "Output",
+      onTokens: ["-j"],
+    },
+    {
+      id: "silent",
+      label: "Silent (-silent)",
+      kind: "toggle",
+      group: "Output",
+      onTokens: ["-silent"],
+    },
+  ],
+  presets: [
+    { id: "deep", label: "Deep crawl", set: { depth: "5", jsCrawl: true } },
+    { id: "js", label: "JS aware", set: { jsCrawl: true, headless: true } },
+  ],
+};
+
+export default katana;

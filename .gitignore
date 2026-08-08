@@ -1,0 +1,23 @@
+# Dependencies
+node_modules/
+
+# Build output
+dist/
+
+# Logs
+*.log
+npm-debug.log*
+
+# Editor / OS
+.DS_Store
+.vscode/*
+!.vscode/extensions.json
+.idea/
+
+# TypeScript incremental
+*.tsbuildinfo
+
+# Go agent build output
+agent/commando-agent
+agent/commando-agent.exe
+agent/dist/

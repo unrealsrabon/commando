@@ -1,0 +1,98 @@
+import type { Tool } from "../../types";
+
+const nuclei: Tool = {
+  id: "nuclei",
+  name: "Nuclei",
+  binary: "nuclei",
+  category: "Web",
+  summary: "Template-based vulnerability scanner for known issues and misconfigurations.",
+  docsUrl: "https://github.com/projectdiscovery/nuclei",
+  install: "go install github.com/projectdiscovery/nuclei/v3/cmd/nuclei@latest",
+  fields: [
+    {
+      id: "url",
+      label: "Target URL",
+      kind: "text",
+      hero: true,
+      contextKey: "URL",
+      valueFlag: "-u",
+      required: true,
+      placeholder: "https://target/",
+    },
+    {
+      id: "listFile",
+      label: "Targets file (-l)",
+      kind: "text",
+      group: "Targets",
+      valueFlag: "-l",
+      placeholder: "hosts.txt",
+      help: "Scan many targets from a file instead of one URL.",
+    },
+    {
+      id: "severity",
+      label: "Severity (-s)",
+      kind: "select",
+      group: "Selection",
+      clearable: true,
+      options: [
+        { id: "critical", label: "critical", tokens: ["-s", "critical"] },
+        { id: "high", label: "high", tokens: ["-s", "high"] },
+        { id: "ch", label: "critical,high", tokens: ["-s", "critical,high"] },
+        { id: "chm", label: "critical,high,medium", tokens: ["-s", "critical,high,medium"] },
+      ],
+    },
+    {
+      id: "tags",
+      label: "Tags (-tags)",
+      kind: "text",
+      group: "Selection",
+      valueFlag: "-tags",
+      placeholder: "cve,rce,lfi",
+    },
+    {
+      id: "templates",
+      label: "Templates (-t)",
+      kind: "text",
+      group: "Selection",
+      valueFlag: "-t",
+      placeholder: "http/cves/",
+    },
+    {
+      id: "rateLimit",
+      label: "Rate limit (-rl)",
+      kind: "number",
+      group: "Performance",
+      valueFlag: "-rl",
+      placeholder: "150",
+    },
+    {
+      id: "concurrency",
+      label: "Concurrency (-c)",
+      kind: "number",
+      group: "Performance",
+      valueFlag: "-c",
+      placeholder: "25",
+    },
+    {
+      id: "jsonExport",
+      label: "JSON lines (-jle)",
+      kind: "text",
+      group: "Output",
+      valueFlag: "-jle",
+      placeholder: "results.jsonl",
+    },
+    {
+      id: "silent",
+      label: "Silent (-silent)",
+      kind: "toggle",
+      group: "Output",
+      onTokens: ["-silent"],
+    },
+  ],
+  presets: [
+    { id: "ch", label: "Critical & High", set: { severity: "ch" } },
+    { id: "cves", label: "CVEs", set: { tags: "cve" } },
+  ],
+};
+
+export default nuclei;
