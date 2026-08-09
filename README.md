@@ -29,17 +29,38 @@
   Made by <strong>Shakil Ahmed Srabon</strong>
 </p>
 
+<p align="center">
+  <a href="https://unrealsrabon.github.io/commando/"><strong>Open Commando &rarr;</strong></a>
+  <br>
+  <sub>The hosted site. Run the agent once and you are in. No install of the app itself.</sub>
+</p>
+
+---
+
+## Screenshot
+
+<p align="center">
+  <img src="assets/commando_interface.png" width="900" alt="Commando interface">
+</p>
+
+<!--
+  Add your screenshot at: assets/commando_interface.png
+  Recommended: a clean full-window shot of Commando connected, with a tool panel open.
+  The width above (900) is a good default; adjust if your image is a different size.
+-->
+
 ---
 
 ## Contents
 
+- [Screenshot](#screenshot)
 - [What is Commando](#what-is-commando)
 - [Why I built it](#why-i-built-it)
 - [How it works](#how-it-works)
 - [Features](#features)
 - [The tool catalog](#the-tool-catalog)
 - [The Workstation](#the-workstation)
-- [Installation](#installation)
+- [Using Commando](#using-commando)
 - [Your first run](#your-first-run)
 - [The wordlist picker](#the-wordlist-picker)
 - [Is it heavy](#is-it-heavy)
@@ -218,22 +239,103 @@ themselves in.
 
 ---
 
-## Installation
+## Using Commando
 
-You do this once, ever. After that you just open the site.
+There are three ways to use Commando. Most people want the first one.
+
+> [!NOTE]
+> Whichever way you pick, the one thing that always runs is the **agent**, the small local
+> program that connects a page to your real terminal. The ways differ only in how you get the
+> agent (a ready-made download or a build from source) and where the page comes from (my hosted
+> site or your own machine).
+
+### Way 1: Download the agent (recommended, no build)
+
+The easiest path. Grab a ready-made agent for your system, run it once, and open the hosted
+site. No Go, no cloning, nothing to compile. The download is a single self-contained file with
+no dependencies to install.
+
+```bash
+# 1. Download the agent for your system (pick the one line that matches)
+# macOS, Apple Silicon (M1 and newer):
+curl -L -o commando-agent https://github.com/unrealsrabon/commando/releases/latest/download/commando-agent-darwin-arm64
+# macOS, Intel:
+curl -L -o commando-agent https://github.com/unrealsrabon/commando/releases/latest/download/commando-agent-darwin-amd64
+# Linux, x86-64 (most Kali installs):
+curl -L -o commando-agent https://github.com/unrealsrabon/commando/releases/latest/download/commando-agent-linux-amd64
+# Linux, ARM64 (Kali on ARM, Raspberry Pi):
+curl -L -o commando-agent https://github.com/unrealsrabon/commando/releases/latest/download/commando-agent-linux-arm64
+
+# 2. Make it executable and install it as a background service
+chmod +x commando-agent
+./commando-agent --install
+
+# 3. Copy your token
+cat ~/.commando/token
+```
+
+Then open the hosted site, click Connect, and paste the token once:
+
+**[https://unrealsrabon.github.io/commando/](https://unrealsrabon.github.io/commando/)**
+
+The browser remembers the token and reconnects on every future visit. You never touch the
+terminal setup again.
+
+> [!NOTE]
+> On macOS the first launch can be blocked because the download is not signed with a paid Apple
+> account. Clear it once with `xattr -d com.apple.quarantine commando-agent`, or right-click the
+> file and choose Open. After that it runs normally every time.
+
+### Way 2: Build the agent from source
+
+Prefer to read the code and compile it yourself? Clone the repo and build just the agent. This
+is the same as Way 1, except you build the one file instead of downloading it. You still use the
+hosted site.
 
 **Requirements:** Go 1.21 or newer.
 
 ```bash
-# 1. Clone the repository
+# 1. Clone the repo (only to build the agent)
 git clone https://github.com/unrealsrabon/commando
 cd commando/agent
 
 # 2. Build the agent and install it as a background service
 go build -o commando-agent . && ./commando-agent --install
+
+# 3. Copy your token
+cat ~/.commando/token
 ```
 
-What the install step does:
+Then open the hosted site the same way, click Connect, and paste the token once:
+
+**[https://unrealsrabon.github.io/commando/](https://unrealsrabon.github.io/commando/)**
+
+### Way 3: Run it fully local (optional)
+
+Prefer to run the whole thing on your own machine, page and all? You can. This is optional and
+mostly for people who want to self-host or work completely offline.
+
+**Requirements:** Go 1.21 or newer, and Node.js 20 or newer.
+
+```bash
+# 1. Clone the repo
+git clone https://github.com/unrealsrabon/commando
+cd commando
+
+# 2. Build and install the agent (same as Way 2)
+cd agent && go build -o commando-agent . && ./commando-agent --install && cd ..
+
+# 3. Run the web app locally
+npm install
+npm run dev
+```
+
+Open the local address Vite prints (usually `http://localhost:5173`), click Connect, and paste
+your token from `cat ~/.commando/token`. Now the page and the agent both live on your machine.
+
+### What the agent install does
+
+Every way runs the same agent install step. It:
 
 - Copies the agent to `~/.commando/commando-agent`
 - Creates a permanent token at `~/.commando/token`
@@ -241,15 +343,6 @@ What the install step does:
 - Starts it right away
 
 From now on the agent starts automatically every time you log in. You never run it by hand again.
-
-**Get your token:**
-
-```bash
-cat ~/.commando/token
-```
-
-**Open Commando, click Connect, and paste the token once.** The browser saves it, and every
-future visit reconnects on its own.
 
 > [!TIP]
 > Rebuilt or updated the agent later? Run `./commando-agent --install` again. It replaces the
@@ -458,8 +551,9 @@ for the commands to actually run, which is easy on Kali and doable anywhere.
 <br>
 
 The commands run entirely on your machine through the local agent, so the actual work is
-offline. The page itself is loaded from GitHub Pages, so you need to load it once. After that
-the connection to your agent is all local.
+offline. If you use the hosted site, the page loads from GitHub Pages once and then everything
+is local. If you run it locally (Way 3), the page lives on your machine too, so the whole thing
+is offline.
 
 </details>
 
@@ -469,6 +563,7 @@ the connection to your agent is all local.
 <br>
 
 It scans the common Kali and SecLists locations by default, plus any folder you add yourself.
+
 Missing folders are skipped quietly, so the defaults are safe on any machine. It reads file
 names only.
 

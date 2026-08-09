@@ -21,3 +21,7 @@ npm-debug.log*
 agent/commando-agent
 agent/commando-agent.exe
 agent/dist/
+
+# Prebuilt agent binaries (uploaded to GitHub Releases, not committed)
+release/
+
