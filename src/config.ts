@@ -36,8 +36,50 @@ export const WORDLIST_PRESETS: { label: string; value: string }[] = [
 export const LS = {
   session: "commando.session.v1",
   agentUrl: "commando.agentUrl.v1",
+  token: "commando.token.v1",
+  tabs: "commando.tabs.v1",
   authAck: "commando.authAck.v1",
   layout: "commando.layout.v1",
   selection: "commando.selection.v1",
+  wordlistRoots: "commando.wordlistRoots.v1",
 } as const;
+
+/**
+ * Folders the wordlist picker scans by default. Missing folders are skipped
+ * silently by the agent, so shipping the common Kali/SecLists locations is safe
+ * on any machine. Users add their own folders on top of these (persisted).
+ */
+export const DEFAULT_WORDLIST_ROOTS: string[] = [
+  "/usr/share/wordlists",
+  "/usr/share/seclists",
+  "/opt/SecLists",
+];
+
+/** User-added wordlist folders, remembered across sessions. */
+export function getWordlistRoots(): string[] {
+  try {
+    const raw = localStorage.getItem(LS.wordlistRoots);
+    if (!raw) return [];
+    const parsed = JSON.parse(raw);
+    return Array.isArray(parsed) ? parsed.filter((x) => typeof x === "string") : [];
+  } catch {
+    return [];
+  }
+}
+
+export function addWordlistRoot(path: string): string[] {
+  const clean = path.trim().replace(/\/+$/, "");
+  const roots = getWordlistRoots();
+  if (!clean || roots.includes(clean)) return roots;
+  const next = [...roots, clean];
+  localStorage.setItem(LS.wordlistRoots, JSON.stringify(next));
+  return next;
+}
+
+export function removeWordlistRoot(path: string): string[] {
+  const next = getWordlistRoots().filter((r) => r !== path);
+  localStorage.setItem(LS.wordlistRoots, JSON.stringify(next));
+  return next;
+}
+
 

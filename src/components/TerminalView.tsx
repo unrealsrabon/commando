@@ -70,14 +70,19 @@ export function TerminalView({ sessionId, active }: { sessionId: string; active:
     const unsubExit = client.subscribeExit(sessionId, () => {
       term.write("\r\n\x1b[38;5;244m[process exited]\x1b[0m\r\n");
     });
+    // On reattach the agent replays this session's buffer; clear first so the
+    // replayed screen replaces stale content instead of stacking on top of it.
+    const unsubReset = client.subscribeReset(sessionId, () => term.reset());
 
     return () => {
       dataSub.dispose();
       resizeSub.dispose();
       unsubscribe();
       unsubExit();
+      unsubReset();
       term.dispose();
     };
+
   }, [client, sessionId]);
 
   // Refit whenever this view becomes active or the window resizes.

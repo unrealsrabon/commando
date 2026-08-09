@@ -10,6 +10,8 @@ import { useState } from "react";
 import type { Field } from "../types";
 import type { FieldValue } from "../engine/assemble";
 import { useSession } from "../state/session";
+import { WordlistPicker } from "./WordlistPicker";
+
 
 interface Props {
   field: Field;
@@ -77,8 +79,15 @@ export function FieldControl({ field, value, onChange }: Props) {
     );
   }
 
+  // Wordlist fields get the Browse assist (defaults + saved folders), while
+  // still behaving as a plain text box for typing/pasting a path.
+  if (field.kind === "text" && field.contextKey === "WORDLIST") {
+    return <WordlistPicker field={field} value={value} onChange={onChange} />;
+  }
+
   // text / number
   const bound = field.contextKey ? session[field.contextKey] ?? "" : undefined;
+
   const shown = value !== undefined && value !== "" ? String(value) : bound ?? "";
 
   const handle = (raw: string) => {

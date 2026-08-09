@@ -95,17 +95,40 @@ const hydra: Tool = {
         { id: "ssh", label: "ssh", tokens: ["ssh"] },
         { id: "ftp", label: "ftp", tokens: ["ftp"] },
         { id: "http-get", label: "http-get", tokens: ["http-get"] },
+        { id: "http-get-form", label: "http-get-form", tokens: ["http-get-form"] },
+        { id: "http-post-form", label: "http-post-form", tokens: ["http-post-form"] },
         { id: "smb", label: "smb", tokens: ["smb"] },
         { id: "rdp", label: "rdp", tokens: ["rdp"] },
+
         { id: "mysql", label: "mysql", tokens: ["mysql"] },
         { id: "postgres", label: "postgres", tokens: ["postgres"] },
       ],
     },
+    {
+      id: "formString",
+      label: "Form string (login forms)",
+      kind: "text",
+      positional: true,
+      placeholder: "/login:user=^USER^&pass=^PASS^:F=incorrect",
+      help: "Only for http-get-form / http-post-form. Format is path:body:F=failure-text. ^USER^ and ^PASS^ are substituted from your username/password lists.",
+    },
   ],
   presets: [
     {
+      id: "http-post-form",
+      label: "HTTP POST form + rockyou",
+      description: "Brute-force a login form. Edit the path, field names and failure text to match the target.",
+      set: {
+        service: "http-post-form",
+        user: "admin",
+        passList: "/usr/share/wordlists/rockyou.txt",
+        formString: "/login:username=^USER^&password=^PASS^:F=incorrect",
+      },
+    },
+    {
       id: "ssh-rockyou",
       label: "SSH + rockyou",
+
       set: { service: "ssh", passList: "/usr/share/wordlists/rockyou.txt", threads: "16" },
     },
     {

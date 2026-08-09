@@ -30,8 +30,8 @@ export function ContextBar({ onConnect }: { onConnect: () => void }) {
     <div className="contextbar">
       <div className="brand">
         <span className="name">Commando</span>
-        <span className="tag">command, don't memorize</span>
       </div>
+
 
       <div className="ctx-vars">
         {primary.map((v) => (

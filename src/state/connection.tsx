@@ -15,12 +15,29 @@ import {
   useState,
   type ReactNode,
 } from "react";
+import { LS, defaultAgentUrl } from "../config";
 
 export type ConnStatus = "disconnected" | "connecting" | "connected" | "error";
+
+/** One wordlist file discovered by the agent under a configured folder. */
+export interface WordlistItem {
+  name: string;
+  path: string;
+}
+
+/** Result of a wordlist scan: the files found plus whether the list was capped. */
+export interface WordlistResult {
+  items: WordlistItem[];
+  truncated: boolean;
+  error?: string;
+}
 
 type OutputHandler = (data: string) => void;
 type ExitHandler = (code: number) => void;
 type StatusHandler = (status: ConnStatus, message?: string) => void;
+type SessionsHandler = (ids: string[]) => void;
+type WordlistsHandler = (result: WordlistResult) => void;
+
 
 function toB64(s: string): string {
   const bytes = new TextEncoder().encode(s);
@@ -41,7 +58,11 @@ export class AgentClient {
   private token = "";
   private outputs = new Map<string, Set<OutputHandler>>();
   private exits = new Map<string, Set<ExitHandler>>();
+  private resets = new Map<string, Set<() => void>>();
   private statusHandlers = new Set<StatusHandler>();
+  private sessionsHandlers = new Set<SessionsHandler>();
+  private wordlistsHandlers = new Set<WordlistsHandler>();
+
 
   status: ConnStatus = "disconnected";
   lastError = "";
@@ -50,6 +71,19 @@ export class AgentClient {
     this.statusHandlers.add(cb);
     return () => this.statusHandlers.delete(cb);
   }
+
+  /** Fires after every (re)connect with the list of shells still alive on the agent. */
+  onSessions(cb: SessionsHandler): () => void {
+    this.sessionsHandlers.add(cb);
+    return () => this.sessionsHandlers.delete(cb);
+  }
+
+  /** Fires when the agent returns the result of a wordlist scan. */
+  onWordlists(cb: WordlistsHandler): () => void {
+    this.wordlistsHandlers.add(cb);
+    return () => this.wordlistsHandlers.delete(cb);
+  }
+
 
   private setStatus(status: ConnStatus, message = ""): void {
     this.status = status;
@@ -83,6 +117,11 @@ export class AgentClient {
         case "ready":
           this.setStatus("connected");
           break;
+        case "sessions": {
+          const ids = Array.isArray(msg.ids) ? msg.ids.map((x) => String(x)) : [];
+          this.sessionsHandlers.forEach((cb) => cb(ids));
+          break;
+        }
         case "stdout": {
           const session = String(msg.session ?? "");
           const data = typeof msg.data === "string" ? fromB64(msg.data) : "";
@@ -95,11 +134,26 @@ export class AgentClient {
           this.exits.get(session)?.forEach((cb) => cb(code));
           break;
         }
+        case "wordlists": {
+          const rawItems = Array.isArray(msg.items) ? msg.items : [];
+          const items: WordlistItem[] = rawItems
+            .map((x) => x as Record<string, unknown>)
+            .filter((x) => typeof x?.path === "string")
+            .map((x) => ({ name: String(x.name ?? ""), path: String(x.path) }));
+          const result: WordlistResult = {
+            items,
+            truncated: Boolean(msg.truncated),
+            error: typeof msg.error === "string" ? msg.error : undefined,
+          };
+          this.wordlistsHandlers.forEach((cb) => cb(result));
+          break;
+        }
         case "error":
           this.setStatus("error", String(msg.message ?? "Agent error"));
           break;
         default:
           break;
+
       }
     };
 
@@ -140,6 +194,16 @@ export class AgentClient {
     this.send({ type: "open", session });
   }
 
+  /**
+   * Reattach to a shell that survived a disconnect. Clears the on-screen
+   * scrollback first (so the agent's replayed buffer does not stack on top of
+   * stale content) then asks the agent to reopen — which replays the buffer.
+   */
+  reattach(session: string): void {
+    this.resets.get(session)?.forEach((cb) => cb());
+    this.send({ type: "open", session });
+  }
+
   closeSession(session: string): void {
     this.send({ type: "close", session });
   }
@@ -157,6 +221,12 @@ export class AgentClient {
     this.send({ type: "resize", session, cols, rows });
   }
 
+  /** Ask the agent to scan the given folders for wordlist files. */
+  listWordlists(roots: string[]): void {
+    this.send({ type: "listwordlists", roots });
+  }
+
+
   subscribeOutput(session: string, cb: OutputHandler): () => void {
     let set = this.outputs.get(session);
     if (!set) {
@@ -172,6 +242,17 @@ export class AgentClient {
     if (!set) {
       set = new Set();
       this.exits.set(session, set);
+    }
+    set.add(cb);
+    return () => set?.delete(cb);
+  }
+
+  /** Fired right before a reattach replay so the view can clear stale output. */
+  subscribeReset(session: string, cb: () => void): () => void {
+    let set = this.resets.get(session);
+    if (!set) {
+      set = new Set();
+      this.resets.set(session, set);
     }
     set.add(cb);
     return () => set?.delete(cb);
@@ -203,13 +284,33 @@ export function ConnectionProvider({ children }: { children: ReactNode }) {
     });
   }, [client]);
 
+  // Auto-reconnect on page load using credentials saved from the last session.
+  useEffect(() => {
+    const savedUrl = localStorage.getItem(LS.agentUrl) ?? defaultAgentUrl();
+    const savedToken = localStorage.getItem(LS.token);
+    if (savedToken) {
+      client.connect(savedUrl, savedToken);
+    }
+    // Run once on mount only. client ref is stable.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   const store = useMemo<ConnectionStore>(
     () => ({
       client,
       status,
       error,
-      connect: (url, token) => client.connect(url, token),
-      disconnect: () => client.disconnect(),
+      connect: (url, token) => {
+        // Persist credentials so the next page load reconnects automatically.
+        localStorage.setItem(LS.agentUrl, url);
+        localStorage.setItem(LS.token, token);
+        client.connect(url, token);
+      },
+      disconnect: () => {
+        // Clear saved credentials so auto-reconnect does not fire next time.
+        localStorage.removeItem(LS.token);
+        client.disconnect();
+      },
     }),
     [client, status, error],
   );

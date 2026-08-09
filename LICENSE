@@ -1,0 +1,62 @@
+Commando License
+Copyright (c) 2026 Shakil Ahmed Srabon. All rights reserved.
+
+Commando (the "Software"), including its source code, design, name, logo, and
+documentation, is the sole property of Shakil Ahmed Srabon (the "Owner"). This
+license explains what you may and may not do with it. If a term is unclear,
+assume the more restrictive reading and ask the Owner.
+
+WHAT YOU MAY DO
+
+1. Use it, free of charge, for personal, educational, and internal purposes.
+   This includes running the local agent on your own machines and using the
+   Software through the Owner's official hosted site.
+
+2. Read and study the source code to learn from it or to check what it does on
+   your machine.
+
+3. Run it as many times as you like, on as many of your own machines as you
+   like, for as long as you like.
+
+WHAT YOU MAY NOT DO
+
+1. You may not sell, rent, license, sublicense, or charge money for the
+   Software or for access to it, in whole or in part.
+
+2. You may not claim the Software as your own, remove or alter authorship or
+   copyright notices, or present it under a different name as if it were yours.
+
+3. You may not host, publish, or distribute your own copy of the Software as a
+   public or commercial service that competes with or substitutes for the
+   Owner's official site, without the Owner's prior written permission.
+
+4. You may not redistribute modified versions as official or as endorsed by the
+   Owner.
+
+OWNERSHIP
+
+The Owner retains full and exclusive ownership of the Software and all
+intellectual property rights in it. This license grants you permission to use
+the Software; it does not transfer any ownership to you. Any right not
+expressly granted here is reserved by the Owner.
+
+CONTRIBUTIONS
+
+If you send the Owner a contribution (code, text, or otherwise) and it is
+accepted, you agree the Owner may use it within the Software under the terms of
+this license, and it becomes part of the Software the Owner owns.
+
+NO WARRANTY
+
+The Software is provided "as is", without warranty of any kind, express or
+implied. Commando builds and runs security commands in your own terminal at
+your direction. You are responsible for what you run and where you run it. Only
+test systems you own or have clear, explicit permission to test. To the maximum
+extent allowed by law, the Owner is not liable for any damage, data loss, or
+legal consequence arising from use of the Software.
+
+PERMISSIONS BEYOND THIS LICENSE
+
+Want to do something this license does not allow, such as a commercial use or a
+public deployment of your own? Ask. Reach out to the Owner for written
+permission.
