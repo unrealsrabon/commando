@@ -328,6 +328,9 @@ input, select { font-family: inherit; font-size: inherit; }
 .chip:hover { border-color: var(--border-strong); }
 .chip.run { background: var(--accent); color: #fff; border-color: transparent; }
 .chip.run:hover { filter: brightness(1.08); }
+.chip.active { background: var(--accent); color: #fff; border-color: transparent; }
+.platform-row { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 8px; }
+
 
 .copied { color: var(--ok); font-size: 12px; }
 
