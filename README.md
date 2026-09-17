@@ -40,7 +40,7 @@
 ## Screenshot
 
 <p align="center">
-  <img src="assets/commando_int.png" width="900" alt="Commando interface">
+  <img src="commando_int.png" width="900" alt="Commando interface">
 </p>
 
 <!--
