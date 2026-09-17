@@ -85,18 +85,6 @@ const hashcat: Tool = {
       placeholder: "/usr/share/wordlists/rockyou.txt",
     },
   ],
-  presets: [
-    {
-      id: "ntlm",
-      label: "NTLM + rockyou",
-      set: { mode: "ntlm", attack: "straight", wordlist: "/usr/share/wordlists/rockyou.txt" },
-    },
-    {
-      id: "md5",
-      label: "MD5 + rockyou",
-      set: { mode: "md5", attack: "straight", wordlist: "/usr/share/wordlists/rockyou.txt" },
-    },
-  ],
 };
 
 export default hashcat;

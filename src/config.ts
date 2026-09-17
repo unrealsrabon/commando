@@ -16,6 +16,8 @@ export const SESSION_VARS: SessionVarSpec[] = [
   { key: "LPORT", label: "LPORT", placeholder: "4444", primary: true, help: "Your listener port" },
   { key: "URL", label: "URL", placeholder: "https://target/", primary: true, help: "Full target URL" },
   { key: "RPORT", label: "RPORT", placeholder: "80", help: "Target port" },
+  { key: "FILEPORT", label: "FILEPORT", placeholder: "8000", help: "Port for serving / transferring files (HTTP server, nc)" },
+  { key: "FILE", label: "FILE", placeholder: "linpeas.sh", help: "Filename served/transferred, loot search term, or share/export name" },
   { key: "DOMAIN", label: "DOMAIN", placeholder: "target.tld", help: "Domain name" },
   { key: "WORDLIST", label: "WORDLIST", placeholder: "/usr/share/wordlists/...", help: "Path to a wordlist" },
   { key: "USER", label: "USER", placeholder: "admin", help: "Username" },

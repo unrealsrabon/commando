@@ -66,13 +66,6 @@ const john: Tool = {
       onTokens: ["--show"],
     },
   ],
-  presets: [
-    {
-      id: "rockyou",
-      label: "Wordlist + rules",
-      set: { wordlist: "/usr/share/wordlists/rockyou.txt", rules: true },
-    },
-  ],
 };
 
 export default john;

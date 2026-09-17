@@ -29,7 +29,9 @@ export function ContextBar({ onConnect }: { onConnect: () => void }) {
   return (
     <div className="contextbar">
       <div className="brand">
-        <span className="name">Commando</span>
+        <span className="name">
+          Com<span className="dim">mando</span>
+        </span>
       </div>
 
 

@@ -13,6 +13,8 @@ export type SessionKey =
   | "RPORT"
   | "LHOST"
   | "LPORT"
+  | "FILEPORT"
+  | "FILE"
   | "URL"
   | "DOMAIN"
   | "WORDLIST"
@@ -132,8 +134,16 @@ export interface Snippet {
   label: string;
   command: string;
   explain?: string;
+  /** Optional section heading rendered above this card when the group changes. */
+  group?: string;
   /** Run this snippet in a fresh terminal tab (e.g. a listener). */
   newTab?: boolean;
+  /**
+   * Whether this snippet can run in the local terminal. Defaults to true.
+   * Set false for content that must run elsewhere (web shells pasted onto the
+   * target) or templates that need manual edits before they would work.
+   */
+  runnable?: boolean;
 }
 
 /** A payload with per-language variants (reverse shells, etc.). */
@@ -142,6 +152,16 @@ export interface PayloadVariant {
   label: string;
   command: string;
   explain?: string;
+  /**
+   * Whether this variant can run in the local terminal. Defaults to true.
+   * Reverse/bind shell bodies execute on the victim, so they are copy-only.
+   */
+  runnable?: boolean;
+  /**
+   * Variant-specific listener. When present it replaces the item-level
+   * listener (e.g. an MSFVenom handler matching this exact payload type).
+   */
+  listener?: Snippet;
 }
 
 export type WorkstationKind = "payload" | "snippets";

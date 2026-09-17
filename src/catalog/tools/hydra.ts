@@ -113,30 +113,6 @@ const hydra: Tool = {
       help: "Only for http-get-form / http-post-form. Format is path:body:F=failure-text. ^USER^ and ^PASS^ are substituted from your username/password lists.",
     },
   ],
-  presets: [
-    {
-      id: "http-post-form",
-      label: "HTTP POST form + rockyou",
-      description: "Brute-force a login form. Edit the path, field names and failure text to match the target.",
-      set: {
-        service: "http-post-form",
-        user: "admin",
-        passList: "/usr/share/wordlists/rockyou.txt",
-        formString: "/login:username=^USER^&password=^PASS^:F=incorrect",
-      },
-    },
-    {
-      id: "ssh-rockyou",
-      label: "SSH + rockyou",
-
-      set: { service: "ssh", passList: "/usr/share/wordlists/rockyou.txt", threads: "16" },
-    },
-    {
-      id: "ftp-rockyou",
-      label: "FTP + rockyou",
-      set: { service: "ftp", passList: "/usr/share/wordlists/rockyou.txt" },
-    },
-  ],
 };
 
 export default hydra;

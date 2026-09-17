@@ -6,7 +6,7 @@
  * Context bar before Copy or Run, and unresolved tokens are called out.
  */
 
-import { useMemo, useState } from "react";
+import { Fragment, useMemo, useState } from "react";
 import type { Snippet, WorkstationItem } from "../types";
 import { resolveSession, unresolvedTokens } from "../engine/template";
 import { useSession } from "../state/session";
@@ -19,12 +19,14 @@ function CommandCard({
   command,
   explain,
   runInNewTab,
+  runnable,
   onRequestConnect,
 }: {
   label: string;
   command: string;
   explain?: string;
   runInNewTab?: boolean;
+  runnable?: boolean;
   onRequestConnect: () => void;
 }) {
   const { values: session } = useSession();
@@ -35,6 +37,9 @@ function CommandCard({
   const resolved = useMemo(() => resolveSession(command, session), [command, session]);
   const missing = useMemo(() => unresolvedTokens(command, session), [command, session]);
   const connected = status === "connected";
+  // Undefined defaults to runnable; only an explicit false hides Run (web shells,
+  // reverse/bind shell bodies, placeholder templates that run elsewhere).
+  const canRun = runnable !== false;
 
   const run = () => {
     if (!connected) {
@@ -53,9 +58,11 @@ function CommandCard({
           <button className="chip" onClick={() => copy(resolved)}>
             {copied ? "Copied" : "Copy"}
           </button>
-          <button className="chip run" onClick={run}>
-            {connected ? (runInNewTab ? "Run in new tab" : "Run") : "Connect"}
-          </button>
+          {canRun && (
+            <button className="chip run" onClick={run}>
+              {connected ? (runInNewTab ? "Run in new tab" : "Run") : "Connect"}
+            </button>
+          )}
         </div>
       </div>
       <div className="card-cmd">{resolved}</div>
@@ -78,6 +85,8 @@ export function WorkstationPanel({
 }) {
   const [variantId, setVariantId] = useState(() => item.variants?.[0]?.id ?? "");
   const activeVariant = item.variants?.find((v) => v.id === variantId) ?? item.variants?.[0];
+  // A variant-specific listener (e.g. matching MSFVenom payload) overrides the item one.
+  const listener = activeVariant?.listener ?? item.listener;
 
   return (
     <div className="rp">
@@ -92,14 +101,14 @@ export function WorkstationPanel({
       <div className="rp-body" style={{ paddingBottom: 24 }}>
         {item.kind === "payload" && item.variants && (
           <>
-            {item.listener && (
+            {listener && (
               <div className="ws-listener">
                 <div className="group-title">Listener</div>
                 <CommandCard
-                  label={item.listener.label}
-                  command={item.listener.command}
-                  explain={item.listener.explain}
-                  runInNewTab={item.listener.newTab}
+                  label={listener.label}
+                  command={listener.command}
+                  explain={listener.explain}
+                  runInNewTab={listener.newTab}
                   onRequestConnect={onRequestConnect}
                 />
               </div>
@@ -123,6 +132,7 @@ export function WorkstationPanel({
                 label={activeVariant.label}
                 command={activeVariant.command}
                 explain={activeVariant.explain}
+                runnable={activeVariant.runnable}
                 onRequestConnect={onRequestConnect}
               />
             )}
@@ -144,18 +154,27 @@ function SnippetList({
   snippets: Snippet[];
   onRequestConnect: () => void;
 }) {
+  let lastGroup: string | undefined;
   return (
     <>
-      {snippets.map((s) => (
-        <CommandCard
-          key={s.id}
-          label={s.label}
-          command={s.command}
-          explain={s.explain}
-          runInNewTab={s.newTab}
-          onRequestConnect={onRequestConnect}
-        />
-      ))}
+      {snippets.map((s) => {
+        // Optional section headings: rendered whenever the group value changes.
+        const heading = s.group !== lastGroup ? s.group : undefined;
+        lastGroup = s.group;
+        return (
+          <Fragment key={s.id}>
+            {heading && <div className="group-title ws-group">{heading}</div>}
+            <CommandCard
+              label={s.label}
+              command={s.command}
+              explain={s.explain}
+              runInNewTab={s.newTab}
+              runnable={s.runnable}
+              onRequestConnect={onRequestConnect}
+            />
+          </Fragment>
+        );
+      })}
     </>
   );
 }

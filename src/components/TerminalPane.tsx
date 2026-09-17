@@ -5,14 +5,38 @@
  * or empty, a calm explainer takes over so the pane is never a blank void.
  */
 
+import { useState } from "react";
 import { useConnection } from "../state/connection";
 import { useTerminals } from "../state/terminals";
 import { TerminalView } from "./TerminalView";
 
 export function TerminalPane({ onConnect }: { onConnect: () => void }) {
   const { status } = useConnection();
-  const { tabs, activeId, create, close, setActive } = useTerminals();
+  const { tabs, activeId, create, close, setActive, rename } = useTerminals();
   const connected = status === "connected";
+
+  // Which tab (if any) is being renamed inline, and its working draft.
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [draft, setDraft] = useState("");
+
+  const beginEdit = (id: string, title: string) => {
+    setEditingId(id);
+    setDraft(title);
+  };
+
+  const commitEdit = () => {
+    if (!editingId) return;
+    const next = draft.trim();
+    // Empty input reverts to the previous title — never allow a blank tab.
+    if (next) rename(editingId, next);
+    setEditingId(null);
+    setDraft("");
+  };
+
+  const cancelEdit = () => {
+    setEditingId(null);
+    setDraft("");
+  };
 
   return (
     <div className="term-wrap">
@@ -23,7 +47,35 @@ export function TerminalPane({ onConnect }: { onConnect: () => void }) {
             className={`term-tab ${tab.id === activeId ? "active" : ""}`}
             onClick={() => setActive(tab.id)}
           >
-            <span>{tab.title}</span>
+            {editingId === tab.id ? (
+              <input
+                className="term-tab-edit"
+                value={draft}
+                autoFocus
+                onClick={(e) => e.stopPropagation()}
+                onChange={(e) => setDraft(e.target.value)}
+                onBlur={commitEdit}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") {
+                    e.preventDefault();
+                    commitEdit();
+                  } else if (e.key === "Escape") {
+                    e.preventDefault();
+                    cancelEdit();
+                  }
+                }}
+              />
+            ) : (
+              <span
+                title="Double-click to rename"
+                onDoubleClick={(e) => {
+                  e.stopPropagation();
+                  beginEdit(tab.id, tab.title);
+                }}
+              >
+                {tab.title}
+              </span>
+            )}
             <button
               className="x"
               title="Close tab"
